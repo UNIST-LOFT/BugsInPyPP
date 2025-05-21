@@ -24,7 +24,7 @@ Therefore, we fixed and improved these issues:
 * The scripts can accept some environment variables to make it more flexible. See [Environment Variables](#enviromnment-variables) section.
 * Now the conda environments are named with the project name and the bug id (e.g. `youtube-dl_1`).
   This makes it easier to understand which environment is used for which project and bug.
-* The outputs of the tests are now more machine friendly.
+* The outputs of the tests are now more machine friendly. See [Test results](#test-results) section.
 * The log messages are optimized.
 * `bugsinpy-compile` will create the conda environment if it does not exist.
   The other scripts for the testing will still fail to force the user to run `bugsinpy-compile` first.
