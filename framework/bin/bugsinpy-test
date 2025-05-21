@@ -105,7 +105,6 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
       do
       run_command_trail=${run_command[index]} 
       run_command_now=$(echo $run_command_trail | sed -e 's/\r//g')
-      echo $run_command_now
    
       res_first=$($run_command_now 2>&1)
       test_result=$?
