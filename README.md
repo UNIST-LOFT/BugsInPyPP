@@ -1,16 +1,49 @@
-# BugsInPy
+# BugsInPy++
 
-BugsInPy: A Database of Existing Bugs in Python Programs to Enable Controlled Testing and Debugging Studies.
-The objective of this work is to support reproducible research on real-world Python projects.
+BugsInPy++ improves the scalability, reproducibility, and usability of the BugsInPy dataset.
+It is based on the modified BugsInPy by F. Aguilar, S. Grayson and D. Marinov.
+Below is the citation for the modified BugsInPy:
+
+```
+F. Aguilar, S. Grayson and D. Marinov, "Reproducing and Improving the BugsInPy Dataset," 2023 IEEE 23rd International Working Conference on Source Code Analysis and Manipulation (SCAM), Bogotá, Colombia, 2023, pp. 260-264, doi: 10.1109/SCAM59687.2023.00036.
+```
+
+Here is the repository of the modified BugsInPy by them:
+```
+https://github.com/reproducing-research-projects/BugsInPy
+```
+
+They did fantastic work on the BugsInPy dataset, but it has some limitations:
+* It's scripts assume that the user uses their own Dockerfile. Thus, some file paths are hardcoded.
+* Their conda environments use hash as a name, which is not very user friendly.
+* Outputs of the tests are user friendly, but not machine friendly.
+* Log messages are not enough to understand what is going on.
+* If the conda environment is not existing, the script will fail.
+
+Therefore, we fixed and improved these issues:
+* The scripts can accept some environment variables to make it more flexible. See [Environment Variables](#enviromnment-variables) section.
+* Now the conda environments are named with the project name and the bug id (e.g. `youtube-dl_1`).
+  This makes it easier to understand which environment is used for which project and bug.
+* The outputs of the tests are now more machine friendly.
+* The log messages are optimized.
+* `bugsinpy-compile` will create the conda environment if it does not exist.
+  The other scripts for the testing will still fail to force the user to run `bugsinpy-compile` first.
 
 # Steps to set up BugsInPy
+First, clone our BugsInPy repository:
+```bash
+git clone https://github.com/UNIST-LOFT/BugsInPyPP.git
+```
 
-1. Clone BugsInPy:
-   - `git clone https://github.com/soarsmu/BugsInPy`
-2. Add BugsInPy executables path:
-   - `export PATH=$PATH:<bugsinpy_path>/framework/bin`
+Then, add the BugsInPy executables path to your `PATH` environment variable:
+```bash
+export PATH=$PATH:<bugsinpy_path>/framework/bin
+```
+In most cases, you can add this line to your `~/.bashrc`, `~/.bash_aliases` or `~/.bash_profile` file to make it permanent.
 
-# BugsInPy Command
+That's it! Now you can use the BugsInPy commands from anywhere in your terminal.
+
+## BugsInPy Command
 
 | Command  | Description                                                                                                           |
 | -------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -23,20 +56,100 @@ The objective of this work is to support reproducible research on real-world Pyt
 | fuzz     | Run a test input generation from specific bug                                                                         |
 | testall  | Reproduce all bugs buggy and fixed version for all projects                                                           |
 
-# Example BugsInPy Command
+## Usage of BugsInPy
+### Print help usage
+```bash
+bugsinpy-<command> --help
+```
+For example, run
+```bash
+bugsinpy-info --help
+```
+to print the help usage of `bugsinpy-info` command.
 
-- Help usage from checkout command:
-  - `bugsinpy-checkout --help`
-- Checkout a buggy source code version (youtube-dl, bug 2, buggy version):
-  - `bugsinpy-checkout -p youtube-dl -v 0 -i 2 -w /temp/projects`
-- Compile sources and tests, and run tests from current directory:
-  - `bugsinpy-compile`
-  - `bugsinpy-test`
+### Checkout a specific bug:
+```
+bugsinpy-checkout -p <project_name> -b <bug_id> -v <0/1> -w <workspace>
+```
+- `-p <project_name>`: Name of the project (e.g. youtube-dl).
+- `-b <bug_id>`: Bug ID (e.g. 1).
+- `-v <0/1>`: Buggy (0) or fixed (1) version.
+- `-w <workspace>`: Workspace name in **absolute path** (e.g. $PWD/youtube-dl_1).
 
-# Enviromnment Variables
-* `CONDA_PATH`: Root path of conda installation, default is `/opt/miniconda3`. Default is `$HOME/anaconda3`.
+For example, to checkout the buggy version of bug 1 from the youtube-dl project, run:
+```bash
+bugsinpy-checkout -p youtube-dl -b 1 -v 0 -w $PWD/youtube-dl_1
+```
 
-# Example BugsInPy Docker
+### Compile the project:
+```bash
+bugsinpy-compile [-w <workspace>]
+```
+* `-w <workspace>`: Optional workspace name in **absolute path** (e.g. $PWD/youtube-dl_1). Default is current directory.
+
+For example to compile the project we checked out in the previous step, run:
+```bash
+bugsinpy-compile -w $PWD/youtube-dl_1
+```
+or
+```bash
+cd $PWD/youtube-dl_1
+bugsinpy-compile
+```
+
+### Test the project:
+```bash
+bugsinpy-test [-w <workspace>] [-t <test_case>] [-a]
+```
+* `-w <workspace>`: Optional workspace name in **absolute path** (e.g. $PWD/youtube-dl_1). Default is current directory.
+* `-t <test_case>`: Run single test instead of all *relevant* tests.
+  Format of the test case is dependent on the testing framework used in the project. To check the format, run `bugsinpy-test --help`.
+* `-a`: Run all test cases instead of the *relevant* tests.
+
+For example, to run relevant tests for the project we compiled in the previous step, run:
+```bash
+bugsinpy-test -w $PWD/youtube-dl_1
+```
+or
+```bash
+cd $PWD/youtube-dl_1
+bugsinpy-test
+```
+
+To run a test whose ID is `test.test_utils.TestUtil.test_match_str`, run:
+```bash
+bugsinpy-test -w $PWD/youtube-dl_1 -t test.test_utils.TestUtil.test_match_str
+```
+
+To run all tests, run:
+```bash
+bugsinpy-test -w $PWD/youtube-dl_1 -a
+```
+
+### Test results
+#### Relevant tests
+After running *relevant* tests (i.e. default mode), the test results will be stored in the `<workspace>/bugsinpy_test.txt` file.
+In the file, it stores the results of the each test in the following format:
+```
+BugsInPy test: <test_command>: <return_code>
+```
+Where `<test_command>` is the command used to run the test and `<return_code>` is the return code of the command.
+
+In addition, the stdout and stderr of the command will be stored.
+
+Also, it prints the results to the console in the same format, but without the stdout and stderr from the command.
+
+#### Single test
+After running a single test, the test results will be stored in the `<workspace>/bugsinpy_singletest.txt` file with the same format as above.
+
+#### All tests
+After running all tests, the test results will be stored in the `<workspace>/bugsinpy_alltest.txt` file.
+However, the format is different from the relevant tests and single test. It is dependent on the testing framework used in the project.
+
+## Enviromnment Variables
+* `CONDA_PATH`: Root path of conda installation. Default is `$HOME/anaconda3`.
+
+<!-- ## Example BugsInPy Docker
 
 The docker enviroments make sure all the dependencies and specific python versions are met by using the [miniconda3 image](https://hub.docker.com/r/continuumio/miniconda3)
 
@@ -49,9 +162,9 @@ Prerequisite is `docker` and `docker compose` please see [documentation](https:/
   - `docker compose up setup youtube-dl --build`
 - Reproduce all projects bugs running buggy (0) and fixed (1) versions
   - ⚠️ Reproduce all projects may require a lot of resources, tested successfully on 4 cores 8 RAM 100GB free drive space
-  - `docker compose up --build`
+  - `docker compose up --build` -->
 
-# New script: `bugsinpy-testall`
+## New script: `bugsinpy-testall`
 
 The `bugsinpy-testall` script automates the execution of the BugsInPy dataset, which contains bugs in various Python projects.
 The script reproduces the bugs, executes tests, and records the results.
@@ -86,9 +199,3 @@ Here's a summary of how the script works:
 6. The script deactivates the Conda environment and repeats the process for the next bug in the project.
 
 The `bugsinpy-testall` script improves reproducibility by providing a standardized and automated approach to reproduce and test bugs in Python projects. It ensures that bugs are tested consistently across different projects, enabling easier verification of bug fixes and facilitating the replication of test results. By logging the output and test results, it helps track the status of bug reproduction and provides a central record for analysis and further investigation.
-
-# TODO
-
-- Add `set -e` to `bugsinpy-compile`.
-- Switch to Nix.
-- Improve automated pipeline.
