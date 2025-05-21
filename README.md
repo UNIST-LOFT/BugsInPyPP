@@ -29,7 +29,19 @@ Therefore, we fixed and improved these issues:
 * `bugsinpy-compile` will create the conda environment if it does not exist.
   The other scripts for the testing will still fail to force the user to run `bugsinpy-compile` first.
 
-# Steps to set up BugsInPy
+## Environment
+* Python 3.8+
+* Anaconda or Miniconda
+
+BugsInPy++ is tested on Ubuntu 22.04 with Python 3.10 and Anaconda 2024.10.
+
+Additionally, run following commands to install the required packages:
+```bash
+apt-get update
+apt-get install -y git nano dos2unix build-essential
+```
+
+## Steps to set up BugsInPy
 First, clone our BugsInPy repository:
 ```bash
 git clone https://github.com/UNIST-LOFT/BugsInPyPP.git
