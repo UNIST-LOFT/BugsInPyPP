@@ -85,15 +85,15 @@ bugsinpy-checkout -p youtube-dl -b 1 -v 0 -w $PWD/youtube-dl_1
 ```bash
 bugsinpy-compile [-w <workspace>]
 ```
-* `-w <workspace>`: Optional workspace name in **absolute path** (e.g. $PWD/youtube-dl_1). Default is current directory.
+* `-w <workspace>`: Optional workspace name (e.g. youtube-dl_1). Default is current directory.
 
 For example to compile the project we checked out in the previous step, run:
 ```bash
-bugsinpy-compile -w $PWD/youtube-dl_1
+bugsinpy-compile -w youtube-dl_1
 ```
 or
 ```bash
-cd $PWD/youtube-dl_1
+cd youtube-dl_1
 bugsinpy-compile
 ```
 
@@ -101,29 +101,29 @@ bugsinpy-compile
 ```bash
 bugsinpy-test [-w <workspace>] [-t <test_case>] [-a]
 ```
-* `-w <workspace>`: Optional workspace name in **absolute path** (e.g. $PWD/youtube-dl_1). Default is current directory.
+* `-w <workspace>`: Optional workspace name (e.g. youtube-dl_1). Default is current directory.
 * `-t <test_case>`: Run single test instead of all *relevant* tests.
   Format of the test case is dependent on the testing framework used in the project. To check the format, run `bugsinpy-test --help`.
 * `-a`: Run all test cases instead of the *relevant* tests.
 
 For example, to run relevant tests for the project we compiled in the previous step, run:
 ```bash
-bugsinpy-test -w $PWD/youtube-dl_1
+bugsinpy-test -w youtube-dl_1
 ```
 or
 ```bash
-cd $PWD/youtube-dl_1
+cd youtube-dl_1
 bugsinpy-test
 ```
 
 To run a test whose ID is `test.test_utils.TestUtil.test_match_str`, run:
 ```bash
-bugsinpy-test -w $PWD/youtube-dl_1 -t test.test_utils.TestUtil.test_match_str
+bugsinpy-test -w youtube-dl_1 -t test.test_utils.TestUtil.test_match_str
 ```
 
 To run all tests, run:
 ```bash
-bugsinpy-test -w $PWD/youtube-dl_1 -a
+bugsinpy-test -w youtube-dl_1 -a
 ```
 
 ### Test results
