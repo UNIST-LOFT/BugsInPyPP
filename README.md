@@ -33,6 +33,9 @@ The objective of this work is to support reproducible research on real-world Pyt
   - `bugsinpy-compile`
   - `bugsinpy-test`
 
+# Enviromnment Variables
+* `CONDA_PATH`: Root path of conda installation, default is `/opt/miniconda3`. Default is `$HOME/anaconda3`.
+
 # Example BugsInPy Docker
 
 The docker enviroments make sure all the dependencies and specific python versions are met by using the [miniconda3 image](https://hub.docker.com/r/continuumio/miniconda3)

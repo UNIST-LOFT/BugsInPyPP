@@ -15,9 +15,9 @@ esac
 ###Read the flag of checkout
 while getopts p:i:v:w: flag
 do
-    case "${flag}" in
-        w) work_dir=${OPTARG};;
-    esac
+   case "${flag}" in
+      w) work_dir=${OPTARG};;
+   esac
 done
 
 ###Update the work directory
@@ -53,18 +53,27 @@ fi
 rm -r -f env/
 
 ###Add environment
-. /opt/conda/etc/profile.d/conda.sh
+default_conda_path=$HOME/anaconda3
+conda_path="${CONDA_PATH:-$default_conda_path}"
+source $conda_path/etc/profile.d/conda.sh
 # Cleanup requirements.txt from unwanted spaces
 sed -i -e '/^\s*#.*$/d' -e '/^\s*$/d' "$work_dir/bugsinpy_requirements.txt"
 # dos2unix is required to make sure requirements.txt is always the correct encoding
 dos2unix $work_dir/bugsinpy_requirements.txt &>/dev/null
 # Generate unique hash for the current enviroment
 bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
-conda_env_name=$(cat <(echo $bug_python_version) "$work_dir/bugsinpy_requirements.txt" | md5sum | cut -d' ' -f 1)
-if ! conda activate $conda_env_name; then
-   echo "Please use 'conda create -n $conda_env_name -y python=$bug_python_version' to create your enviroment first or bugsinpy-testall -p project_name:bug_id"
-   exit
+conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
+# conda_env_name=$(cat <(echo $bug_python_version) "$work_dir/bugsinpy_requirements.txt" | md5sum | cut -d' ' -f 1)
+
+if ! conda list --name $conda_env_name > /dev/null 2>&1; then
+   echo "conda environment not found, creating..."
+   conda create -n $conda_env_name -y python=$bug_python_version
 fi
+conda activate $conda_env_name
+# if ! conda activate $conda_env_name; then
+#    echo "Please use 'conda create -n $conda_env_name -y python=$bug_python_version' to create your enviroment first or bugsinpy-testall -p project_name:bug_id"
+#    exit
+# fi
 
 ###Add pythonpath
 pythonpath_set=""
@@ -86,38 +95,39 @@ elif [[ "$REPLY" == "test_file"* ]]; then
 elif [[ "$REPLY" == "pythonpath"* ]]; then
    pythonpath_all="$(cut -d'"' -f 2 <<< $REPLY)"
    if [ "$pythonpath_all" != "" ]; then
-       if [[ $work_dir != /* ]]; then
-           work_dir_py=${work_dir:1}
-           temp_folder=":${work_dir_py}/"
-       else
-           temp_folder=":${work_dir}/"
-       fi
-       check_py="$(cut -d';' -f 1 <<< $pythonpath_all; )"
-       string2="$(cut -d'/' -f 1 <<< $check_py/ )"
-       temp_change_py=";$pythonpath_all"
-       deli=";$string2"
-       pythonpath_set=${temp_change_py//$deli/$temp_folder}
-       pythonpath_set="${pythonpath_set:1}"
-       pythonpath_set=$(echo "$pythonpath_set" | sed s#//*#/#g)
+      if [[ $work_dir != /* ]]; then
+         work_dir_py=${work_dir:1}
+         temp_folder=":${work_dir_py}/"
+      else
+         temp_folder=":${work_dir}/"
+      fi
+      check_py="$(cut -d';' -f 1 <<< $pythonpath_all; )"
+      string2="$(cut -d'/' -f 1 <<< $check_py/ )"
+      temp_change_py=";$pythonpath_all"
+      deli=";$string2"
+      pythonpath_set=${temp_change_py//$deli/$temp_folder}
+      pythonpath_set="${pythonpath_set:1}"
+      pythonpath_set=$(echo "$pythonpath_set" | sed s#//*#/#g)
    fi
 fi
 done < "$work_dir/bugsinpy_bug.info"
 
 
 ###Read setup.sh
-  run_setup_all=""
-  if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
-    DONE=false
-    until $DONE ;do
-    read || DONE=true
-       run_setup_all+="$REPLY;"
-       echo $REPLY
-    done < "$work_dir/bugsinpy_setup.sh"
-  fi
-  
-  IFS=';' read -r -a run_setup <<< "$run_setup_all"
+run_setup_all=""
+if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
+   DONE=false
+   until $DONE ;do
+   read || DONE=true
+      run_setup_all+="$REPLY;"
+      echo $REPLY
+   done < "$work_dir/bugsinpy_setup.sh"
+fi
+
+IFS=';' read -r -a run_setup <<< "$run_setup_all"
 
 ###Run setup.sh
+echo "Setup project..."
 #dos2unix $work_dir/bugsinpy_requirements.txt
 #pip install -r "$work_dir/bugsinpy_requirements.txt"
 if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
@@ -137,84 +147,87 @@ done
 ###Install requirement
 #pip install -r "$work_dir/bugsinpy_requirements.txt"
 if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
+   echo "Install dependencies..."
    # Iterate requirements.txt and install line by line,
    # this is similar to the original approach but avoids issues with editable dependencies
    # like this -e git+https://
    sed -e '/^\s*#.*$/d' -e '/^\s*$/d' $work_dir/bugsinpy_requirements.txt | xargs -I {} pip install {}
+else
+   echo "No special dependencies found, skip!"
 fi
 conda deactivate
 
 
 ###Add pythonpath
 # conda handles the python version, this is not longer required
-  if false && [ "$pythonpath_set" != "" ]; then
-     if [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        saveReply=""
-        pythonpath_exist="NO"
-        should_change="NO"
-        DONE=false
-        until $DONE ;do
-        read || DONE=true
-        if [[ "$pythonpath_exist" == "YES" ]]; then
-            if [[ "$REPLY" != "export PYTHONPATH"* ]]; then
-               should_change="YES"
-            fi
-            pythonpath_exist="YES1"
-        fi
-        if [[ "$REPLY" == "PYTHONPATH="* ]]; then
-            pythonpath_exist="YES"
-            tes='"'
-            if [[ "$REPLY" != *"$pythonpath_set:"* ]]; then
-               should_change="YES"
-               saveReply=$REPLY
-               string1="${REPLY%:*}"
-               string2="${REPLY##*:}"
-               if [[ "$string2" == *"PYTHONPATH"* ]]; then
-                  echo "$string1:$pythonpath_set:$string2"
-               else
-                  temp="$"
-                  temp_py="PYTHONPATH"
-                  temp2=${REPLY%$tes*}
-                  echo "$temp2:$pythonpath_set:$temp$temp_py$tes"
-               fi
-            fi
-        fi 
-        done <  ~/.bashrc 
-        if [[ "$pythonpath_exist" == "NO" ]]; then
-            should_change="NO"
-            temp_path_not_exist='PYTHONPATH="$pythonpath_set:$PYTHONPATH"'
-            echo "$temp_path_not_exist" >> ~/.bashrc 
-            echo "export PYTHONPATH" >> ~/.bashrc 
-            source ~/.bashrc
-        fi
-        if [[ "$should_change" == "YES" ]]; then
-            echo "SHOULD CHANGE"
-            sed -i.bak '/PYTHONPATH=/d' ~/.bashrc
-            if [[ "$pythonpath_exist" == "YES1" ]]; then
-                sed -i.bak '/export PYTHONPATH/d' ~/.bashrc
-            fi
+#   if false && [ "$pythonpath_set" != "" ]; then
+#      if [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+#         saveReply=""
+#         pythonpath_exist="NO"
+#         should_change="NO"
+#         DONE=false
+#         until $DONE ;do
+#         read || DONE=true
+#         if [[ "$pythonpath_exist" == "YES" ]]; then
+#             if [[ "$REPLY" != "export PYTHONPATH"* ]]; then
+#                should_change="YES"
+#             fi
+#             pythonpath_exist="YES1"
+#         fi
+#         if [[ "$REPLY" == "PYTHONPATH="* ]]; then
+#             pythonpath_exist="YES"
+#             tes='"'
+#             if [[ "$REPLY" != *"$pythonpath_set:"* ]]; then
+#                should_change="YES"
+#                saveReply=$REPLY
+#                string1="${REPLY%:*}"
+#                string2="${REPLY##*:}"
+#                if [[ "$string2" == *"PYTHONPATH"* ]]; then
+#                   echo "$string1:$pythonpath_set:$string2"
+#                else
+#                   temp="$"
+#                   temp_py="PYTHONPATH"
+#                   temp2=${REPLY%$tes*}
+#                   echo "$temp2:$pythonpath_set:$temp$temp_py$tes"
+#                fi
+#             fi
+#         fi 
+#         done <  ~/.bashrc 
+#         if [[ "$pythonpath_exist" == "NO" ]]; then
+#             should_change="NO"
+#             temp_path_not_exist='PYTHONPATH="$pythonpath_set:$PYTHONPATH"'
+#             echo "$temp_path_not_exist" >> ~/.bashrc 
+#             echo "export PYTHONPATH" >> ~/.bashrc 
+#             source ~/.bashrc
+#         fi
+#         if [[ "$should_change" == "YES" ]]; then
+#             echo "SHOULD CHANGE"
+#             sed -i.bak '/PYTHONPATH=/d' ~/.bashrc
+#             if [[ "$pythonpath_exist" == "YES1" ]]; then
+#                 sed -i.bak '/export PYTHONPATH/d' ~/.bashrc
+#             fi
 
             
-            string1="${saveReply%:*}"
-            string2="${saveReply##*:}"
-            if [[ "$string2" == *"PYTHONPATH"* ]]; then
-               string1="${saveReply%%/*}"
-               string2="$(cut -d'"' -f 2 <<< $saveReply)"
-               delimeter='"'
-               echo "$pythonpath_set"
-               echo "$string1"
-               echo "$string1$pythonpath_set:$string2$delimeter" >> ~/.bashrc
-            else
-               temp="$"
-               temp_py="PYTHONPATH"
-               temp2=${saveReply%$tes*}
-               echo "$temp2:$pythonpath_set:$temp$temp_py$tes" >> ~/.bashrc
-            fi
-            echo "export PYTHONPATH" >> ~/.bashrc
-            source ~/.bashrc
-        fi
-      fi
-  fi
+#             string1="${saveReply%:*}"
+#             string2="${saveReply##*:}"
+#             if [[ "$string2" == *"PYTHONPATH"* ]]; then
+#                string1="${saveReply%%/*}"
+#                string2="$(cut -d'"' -f 2 <<< $saveReply)"
+#                delimeter='"'
+#                echo "$pythonpath_set"
+#                echo "$string1"
+#                echo "$string1$pythonpath_set:$string2$delimeter" >> ~/.bashrc
+#             else
+#                temp="$"
+#                temp_py="PYTHONPATH"
+#                temp2=${saveReply%$tes*}
+#                echo "$temp2:$pythonpath_set:$temp$temp_py$tes" >> ~/.bashrc
+#             fi
+#             echo "export PYTHONPATH" >> ~/.bashrc
+#             source ~/.bashrc
+#         fi
+#       fi
+#   fi
 
 
 ###Add compile flag
