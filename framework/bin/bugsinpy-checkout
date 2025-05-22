@@ -35,12 +35,12 @@ done
 ###Project name and bug id are mandatory
 if [ "$project_name" == "" ]; then 
    echo "Please input project name"
-   exit
+   exit 1
 fi
 
 if [ "$bug_id" == "" ]; then 
    echo "Please input bug id"
-   exit
+   exit 1
 fi
 if [ "$version_id" == "" ]; then 
    version_id="1"
@@ -71,13 +71,13 @@ bugsinpy_location=$(pwd)
 project_location="$bugsinpy_location/projects/$project_name"
 if [ ! -d "$project_location" ]; then
   echo "Project $project_name does not exist, please check the project name"
-  exit
+  exit 1
 fi
 
 ###Check if bug exist
 if [ ! -d "$project_location/bugs/$bug_id" ]; then
   echo "Bug number $bug_id does not exist, please check the bug id"
-  exit
+  exit 1
 fi
 
 cd "$project_location"
@@ -106,7 +106,7 @@ done < "$input"
 
 ###Clone the project
 if [[ "$checkfurther" == "NO" ]]; then
-  exit
+  exit 0
 elif [[ "$checkfurther" == "YES" ]]; then
    git clone "$githubURL" "$work_dir/$project_name"
 fi

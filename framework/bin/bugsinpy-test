@@ -46,12 +46,12 @@ fi
 
 if [[ ! -e "$work_dir/bugsinpy_run_test.sh" ]]; then
    echo "This is not a checkout project folder"
-   exit
+   exit 1
 fi
 
 if [[ ! -e "$work_dir/bugsinpy_compile_flag" ]]; then
    echo "You have not compile this project"
-   exit
+   exit 1
 fi
 
 if [[ "$relevant" == "1" ]]; then
@@ -74,7 +74,7 @@ bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
 conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
 if ! conda activate $conda_env_name; then
    echo "conda env not found, please run bugsinpy-compile first"
-   exit
+   exit 1
 fi
 
 pytest="0"

@@ -33,20 +33,20 @@ fi
 ###Check work directory 
 if [[ ! -e "$work_dir/bugsinpy_bug.info" ]]; then
    echo "This is not a checkout project folder"
-   exit
+   exit 1
 elif [[ ! -e "$work_dir/bugsinpy_requirements.txt" ]]; then
    echo "This is not a checkout project folder"
-   exit
+   exit 1
 elif [[ ! -e "$work_dir/bugsinpy_run_test.sh" ]]; then
    echo "This is not a checkout project folder"
-   exit
+   exit 1
 fi
 
 ###Check dos2unix
 #check_dos2unix=$(dos2unix --version 2>&1)
 #if [ "$check_dos2unix" == *"not found"* ]; then
 #   echo "Please install dos2unix (sudo apt-get dos2unix)"
-#   exit
+#   exit 1
 #fi
 
 ###Remove environment if exist
@@ -72,7 +72,7 @@ fi
 conda activate $conda_env_name
 # if ! conda activate $conda_env_name; then
 #    echo "Please use 'conda create -n $conda_env_name -y python=$bug_python_version' to create your enviroment first or bugsinpy-testall -p project_name:bug_id"
-#    exit
+#    exit 1
 # fi
 
 ###Add pythonpath
