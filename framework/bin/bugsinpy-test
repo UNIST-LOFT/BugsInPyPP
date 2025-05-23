@@ -77,6 +77,26 @@ if ! conda activate $conda_env_name; then
    exit 1
 fi
 
+###Read and run setup.sh to apply the source change
+run_setup_all=""
+if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
+   DONE=false
+   until $DONE ;do
+   read || DONE=true
+      run_setup_all+="$REPLY;"
+      echo $REPLY
+   done < "$work_dir/bugsinpy_setup.sh"
+fi
+
+IFS=';' read -r -a run_setup <<< "$run_setup_all"
+
+for index in "${!run_setup[@]}"
+do
+   run_setup_trail=${run_setup[index]} 
+   run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+   $run_setup_now
+done
+
 pytest="0"
 #read file run_test.sh
 run_command_all=""
