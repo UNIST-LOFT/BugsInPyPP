@@ -69,11 +69,10 @@ if ! conda list --name $conda_env_name > /dev/null 2>&1; then
    echo "conda environment not found, creating..."
    conda create -n $conda_env_name -y python=$bug_python_version
 fi
-conda activate $conda_env_name
-# if ! conda activate $conda_env_name; then
-#    echo "Please use 'conda create -n $conda_env_name -y python=$bug_python_version' to create your enviroment first or bugsinpy-testall -p project_name:bug_id"
-#    exit 1
-# fi
+if ! conda activate $conda_env_name; then
+   echo "Failed to activate conda environment $conda_env_name"
+   exit 1
+fi
 
 ###Add pythonpath
 pythonpath_set=""
