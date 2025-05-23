@@ -99,6 +99,8 @@ bugsinpy-compile [-w <workspace>]
 ```
 * `-w <workspace>`: Optional workspace name (e.g. youtube-dl_1). Default is current directory.
 
+:warning: Running `bugsinpy-compile` in parallel may cause issue related to `urllib3` package.
+
 For example to compile the project we checked out in the previous step, run:
 ```bash
 bugsinpy-compile -w youtube-dl_1
