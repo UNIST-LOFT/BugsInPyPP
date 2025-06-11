@@ -8,9 +8,15 @@ usage="-w work_dir
              Run all test case in the project. Default will run the test case that relevant from bugs
        -r
              Run the test case that relevant from bugs (Default)
+       -s
+             Run single test without re-compile(source file not changed)
 "
 
+## Add path settings
+export PYTHONNOUSERSITE=1
 
+## Add Skip re-compile(for single directory test without source file changed.)
+skip_build="0"
 run_all="0"
 relevant="0"
 case $1 in
@@ -22,15 +28,18 @@ ____HALP
         exit 0;;
  -a) run_all="1";;
  -r) relevant="1";;
+ -s) skip_build="1";;
 esac
 
 single_test=""
 ###Read the flag of checkout
-while getopts t:w: flag
+while getopts t:w:sa flag
 do
    case "${flag}" in
       w) work_dir=${OPTARG};;
       t) single_test=${OPTARG};;
+      s) skip_build="1";;
+      a) run_all="1";;
    esac
 done
 
@@ -70,32 +79,38 @@ sed -i -e '/^\s*#.*$/d' -e '/^\s*$/d' "$work_dir/bugsinpy_requirements.txt"
 dos2unix $work_dir/bugsinpy_requirements.txt &>/dev/null
 # Generate unique hash for the current enviroment
 bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
-# conda_env_name=$(cat <(echo $bug_python_version) "$work_dir/bugsinpy_requirements.txt" | md5sum | cut -d' ' -f 1)
 conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
+project_name=$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)
+
 if ! conda activate $conda_env_name; then
    echo "conda env not found, please run bugsinpy-compile first"
    exit 1
 fi
 
-###Read and run setup.sh to apply the source change
-run_setup_all=""
-if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
-   DONE=false
-   until $DONE ;do
-   read || DONE=true
-      run_setup_all+="$REPLY;"
-      echo $REPLY
-   done < "$work_dir/bugsinpy_setup.sh"
+
+if [[ "$skip_build" == "0" ]]; then
+   ###Read and run setup.sh to apply the source change
+   run_setup_all=""
+   if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
+      DONE=false
+      until $DONE ;do
+      read || DONE=true
+         run_setup_all+="$REPLY;"
+         echo $REPLY
+      done < "$work_dir/bugsinpy_setup.sh"
+   fi
+
+   IFS=';' read -r -a run_setup <<< "$run_setup_all"
+
+   for index in "${!run_setup[@]}"
+   do
+      run_setup_trail=${run_setup[index]} 
+      run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+      $run_setup_now
+   done
+else
+   echo "[INFO] Skip recompile due to -s (skip build) flag (no-source file changed)."
 fi
-
-IFS=';' read -r -a run_setup <<< "$run_setup_all"
-
-for index in "${!run_setup[@]}"
-do
-   run_setup_trail=${run_setup[index]} 
-   run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
-   $run_setup_now
-done
 
 pytest="0"
 #read file run_test.sh
@@ -114,8 +129,11 @@ done < "$work_dir/bugsinpy_run_test.sh"
 IFS=';' read -r -a run_command <<< "$run_command_all"
 
 rm -f "$work_dir/bugsinpy_fail.txt"
+rm -f "$work_dir/bugsinpy_test.txt"
 rm -f "$work_dir/bugsinpy_alltest.txt"
 rm -f "$work_dir/bugsinpy_singletest.txt"
+
+final_result=0
 
 if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
       #run every command on the run_test.sh
@@ -123,25 +141,45 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
       echo "Run related tests..."
       for index in "${!run_command[@]}"
       do
-      run_command_trail=${run_command[index]} 
-      run_command_now=$(echo $run_command_trail | sed -e 's/\r//g')
-   
-      res_first=$($run_command_now 2>&1)
-      test_result=$?
-      echo "$run_command_now: $test_result"
-      if [[ ${res_first##*$'\n'} == *"OK"* || ${res_first##*$'\n'} == *"pass"* || $res_first == *"passed"* || $res_first == *"OK "* ]]; then
-         run_command_filter+="$run_command_now;"
-      fi
-      echo "BugsInPy test: $run_command_now: $test_result" &>>"$work_dir/bugsinpy_test.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_test.txt"
-   done
+         run_command_trail=${run_command[index]} 
+         run_command_now=$(echo $run_command_trail | sed -e 's/\r//g')
+      
+         res_first=$($run_command_now 2>&1)
+         test_result=$?
+         echo "$run_command_now: $test_result"
+
+         if [[ $test_result -ne 0 ]]; then
+            final_result=1
+         fi
+
+         if [[ ${res_first##*$'\n'} == *"OK"* || ${res_first##*$'\n'} == *"pass"* || $res_first == *"passed"* || $res_first == *"OK "* ]]; then
+            run_command_filter+="$run_command_now;"
+         fi
+         echo "BugsInPy test: $run_command_now: $test_result" &>>"$work_dir/bugsinpy_test.txt"
+         echo "$res_first" &>>"$work_dir/bugsinpy_test.txt"
+      done
 elif [[ "$run_all" == "1" ]]; then
    echo "Run every test..."
    if [[ "$pytest" == "1" ]]; then
-      res_first=$(pytest 2>&1)
+
+      if [[ "$project_name" == "pandas" ]]; then
+         echo "[INFO] Pandas detected - disabling addopts for pytest"
+         res_first=$(PYTEST_ADDOPTS="" pytest 2>&1)
+      elif [[ "$project_name" == "tqdm" ]]; then
+         echo "[INFO] tqdm detected - running tqdm/tests/tests_*.py files"
+         res_first=$(python3 -m pytest tqdm/tests/tests_*.py 2>&1)
+      else
+         res_first=$(pytest 2>&1)
+      fi
+
+      test_result=$?
       echo "$res_first"
       echo "pytest" &>>"$work_dir/bugsinpy_alltest.txt"
       echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
+
+      if [[ $test_result -ne 0 ]]; then
+         final_result=1
+      fi
    else
       echo "Run Unittest"
       ###Read bug.info file
@@ -180,10 +218,15 @@ elif [[ "$run_all" == "1" ]]; then
       echo "$access_test"
       echo "python -m unittest discover $access_test"
       res_first=$(python -m unittest discover $access_test 2>&1)
+      test_result=$?
       #python -m unittest
       echo "$res_first"
       echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
       echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
+
+      if [[ $test_result -ne 0 ]]; then
+         final_result=1
+      fi
    fi
 elif [ "$single_test" != "" ]; then
    echo "Run $single_test..."
@@ -200,7 +243,12 @@ elif [ "$single_test" != "" ]; then
       echo "BugsInPy test: $single_test: $test_result" &>>"$work_dir/bugsinpy_singletest.txt"
       echo "$res_first" &>>"$work_dir/bugsinpy_singletest.txt"
    fi
+
+   if [[ $test_result -ne 0 ]]; then
+      final_result=1
+   fi
 fi
 
 ###Deactivate the environment
 conda deactivate
+exit $final_result

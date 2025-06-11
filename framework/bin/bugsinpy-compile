@@ -2,6 +2,7 @@
 usage="-w work_dir
              The working directory to compile the project. Default will be the current directory.
 "
+export PYTHONNOUSERSITE=1
 
 case $1 in
  -[h?] | --help)
@@ -65,10 +66,10 @@ bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
 conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
 # conda_env_name=$(cat <(echo $bug_python_version) "$work_dir/bugsinpy_requirements.txt" | md5sum | cut -d' ' -f 1)
 
-if ! conda list --name $conda_env_name > /dev/null 2>&1; then
-   echo "conda environment not found, creating..."
-   conda create -n $conda_env_name -y python=$bug_python_version
-fi
+# if ! conda list --name $conda_env_name > /dev/null 2>&1; then
+#    echo "conda environment not found, creating..."
+#    conda create -n $conda_env_name -y python=$bug_python_version
+# fi
 if ! conda activate $conda_env_name; then
    echo "Failed to activate conda environment $conda_env_name"
    exit 1
