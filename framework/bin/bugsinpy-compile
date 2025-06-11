@@ -135,6 +135,8 @@ if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
    # like this -e git+https://
    sed -e '/^\s*#.*$/d' -e '/^\s*$/d' $work_dir/bugsinpy_requirements.txt | xargs -I {} pip install {}
 fi
+# Install pytest-xdist and unittest-parallel to run tests in parallel
+python3 -m pip install pytest-xdist unittest-parallel
 
 for index in "${!run_setup[@]}"
 do
