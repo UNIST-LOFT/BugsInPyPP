@@ -10,6 +10,8 @@ usage="-w work_dir
              Run the test case that relevant from bugs (Default)
        -s
              Run single test without re-compile(source file not changed)
+       -j cpu
+             Run all test case in parallel. Only works with -a option. Default is 1.
 "
 
 ## Add path settings
@@ -19,6 +21,7 @@ export PYTHONNOUSERSITE=1
 skip_build="0"
 run_all="0"
 relevant="0"
+parallel_job="1"
 case $1 in
  -[h?] | --help)
     cat <<-____HALP
@@ -33,13 +36,12 @@ esac
 
 single_test=""
 ###Read the flag of checkout
-while getopts t:w:sa flag
+while getopts t:w:j: flag
 do
    case "${flag}" in
       w) work_dir=${OPTARG};;
       t) single_test=${OPTARG};;
-      s) skip_build="1";;
-      a) run_all="1";;
+      j) parallel_job=${OPTARG};;
    esac
 done
 
@@ -161,25 +163,8 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
 elif [[ "$run_all" == "1" ]]; then
    echo "Run every test..."
    if [[ "$pytest" == "1" ]]; then
-
-      if [[ "$project_name" == "pandas" ]]; then
-         echo "[INFO] Pandas detected - disabling addopts for pytest"
-         res_first=$(PYTEST_ADDOPTS="" pytest 2>&1)
-      elif [[ "$project_name" == "tqdm" ]]; then
-         echo "[INFO] tqdm detected - running tqdm/tests/tests_*.py files"
-         res_first=$(python3 -m pytest tqdm/tests/tests_*.py 2>&1)
-      else
-         res_first=$(pytest 2>&1)
-      fi
-
-      test_result=$?
-      echo "$res_first"
-      echo "pytest" &>>"$work_dir/bugsinpy_alltest.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
-
-      if [[ $test_result -ne 0 ]]; then
-         final_result=1
-      fi
+      echo "python -m pytest -n $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
+      python -m pytest -n $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
    else
       echo "Run Unittest"
       ###Read bug.info file
@@ -216,14 +201,13 @@ elif [[ "$run_all" == "1" ]]; then
       done
 
       echo "$access_test"
-      echo "python -m unittest discover $access_test"
-      res_first=$(python -m unittest discover $access_test 2>&1)
-      test_result=$?
+      # echo "python -m unittest discover $access_test"
+      echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job"
+      echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
+      # res_first=$(python -m unittest discover $access_test 2>&1)
+      unittest-parallel -t $work_dir -s $access_test -j $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
       #python -m unittest
-      echo "$res_first"
-      echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
-
+      test_result=${PIPESTATUS[0]}
       if [[ $test_result -ne 0 ]]; then
          final_result=1
       fi
