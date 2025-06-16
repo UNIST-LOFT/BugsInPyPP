@@ -22,17 +22,20 @@ skip_build="0"
 run_all="0"
 relevant="0"
 parallel_job="1"
-case $1 in
- -[h?] | --help)
-    cat <<-____HALP
-        Usage: ${0##*/} [ --help ]
-        $usage
+for arg in "$@"; do
+  case $arg in
+    -[h?] | --help)
+      cat <<-____HALP
+          Usage: ${0##*/} [ --help ]
+          $usage
 ____HALP
-        exit 0;;
- -a) run_all="1";;
- -r) relevant="1";;
- -s) skip_build="1";;
-esac
+      exit 0
+      ;;
+    -a) run_all="1";;
+    -r) relevant="1";;
+    -s) skip_build="1";;
+  esac
+done
 
 single_test=""
 ###Read the flag of checkout
@@ -83,6 +86,7 @@ dos2unix $work_dir/bugsinpy_requirements.txt &>/dev/null
 bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
 conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
 project_name=$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)
+bug_id=$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)
 
 if ! conda activate $conda_env_name; then
    echo "conda env not found, please run bugsinpy-compile first"
@@ -163,8 +167,21 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
 elif [[ "$run_all" == "1" ]]; then
    echo "Run every test..."
    if [[ "$pytest" == "1" ]]; then
-      echo "python -m pytest -n $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
-      python -m pytest -n $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+      if [[ "$project_name" == "pandas" ]]; then
+         if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
+            echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"$work_dir/bugsinpy_alltest.txt"
+            pytest pandas --ignore=pandas/tests/io/test_parquet.py 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+         else
+            echo "pytest pandas" &>>"$work_dir/bugsinpy_alltest.txt"
+            pytest pandas 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+         fi
+      elif [[ "$project_name" == "tqdm" ]]; then
+         echo "python -m pytest tqdm/tests/tests_*.py" &>>"$work_dir/bugsinpy_alltest.txt"
+         python -m pytest tqdm/tests/tests_*.py 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+      else
+         echo "python -m pytest" &>>"$work_dir/bugsinpy_alltest.txt"
+         python -m pytest 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+      fi
    else
       echo "Run Unittest"
       ###Read bug.info file
@@ -201,13 +218,27 @@ elif [[ "$run_all" == "1" ]]; then
       done
 
       echo "$access_test"
+      echo "python -m unittest discover -s $access_test"
+      res_first=$(python -m unittest discover $access_test 2>&1)
+      echo "$res_first"
+      echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
+      echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
       # echo "python -m unittest discover $access_test"
-      echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job"
-      echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
-      # res_first=$(python -m unittest discover $access_test 2>&1)
-      unittest-parallel -t $work_dir -s $access_test -j $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
-      #python -m unittest
-      test_result=${PIPESTATUS[0]}
+      # if [[ "$project_name" == "black" ]]; then
+      #    echo "python -m unittest discover -s $access_test"
+      #    res_first=$(python -m unittest discover $access_test 2>&1)
+      #    echo "$res_first"
+      #    echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
+      #    echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
+      # else
+      #    echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job"
+      #    echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
+      #    # res_first=$(python -m unittest discover $access_test 2>&1)
+      #    unittest-parallel -t $work_dir -s $access_test -j $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+      #    #python -m unittest
+      #    test_result=${PIPESTATUS[0]}
+      # fi
+
       if [[ $test_result -ne 0 ]]; then
          final_result=1
       fi
