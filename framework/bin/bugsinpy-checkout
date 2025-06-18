@@ -1,8 +1,10 @@
 #!/bin/bash
+set -e
 
 framework_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-usage="-p project_name
+usage="
+        -p project_name
              The name of the project for which a particular version shall be checked out. Run bugsinpy-info to check available project
         -i bug_id
              The number of bug from project in bugsinpy. Run bugsinpy-info to check bug id number
@@ -196,6 +198,7 @@ echo "$patch_fix_all" > "$work_dir/$project_name/bugsinpy_patchfile.info"
 
 ###Move information about bug to clone project folder
 cp -f "$project_location/bugs/$bug_id/bug.info" "$work_dir/$project_name/bugsinpy_bug.info"
+echo ""
 echo "project_name=$project_name" >> "$work_dir/$project_name/bugsinpy_bug.info"
 echo "bug_id=$bug_id" >> "$work_dir/$project_name/bugsinpy_bug.info"
 cp -f "$project_location/bugs/$bug_id/requirements.txt" "$work_dir/$project_name/bugsinpy_requirements.txt"
@@ -206,5 +209,68 @@ if [[ -e "$project_location/bugs/$bug_id/setup.sh" ]]; then
    cp -f "$project_location/bugs/$bug_id/setup.sh" "$work_dir/$project_name/bugsinpy_setup.sh"
 fi
 
+# Add custom unittest runner to save report in JSON format
+echo '#!/usr/bin/env python
+import os
+import sys
+import unittest
+import json
 
+class JSONTestResult(unittest.TextTestResult):
+    def __init__(self, stream, descriptions, verbosity):
+        super().__init__(stream, descriptions, verbosity)
+        self.str_success=[]
+        self.str_failures=[]
+        self.str_errors=[]
 
+    def parseTest(self, test:str):
+        # Input: test_function (test_module.TestClass)
+        # Output: test_module.TestClass.test_function
+        test_splitted = test.split()
+        test_func, test_class = test_splitted[0], test_splitted[1]
+        test_class = test_class[1:-1] # Remove the parentheses
+        return f"{test_class}.{test_func}"
+
+    def addSuccess(self, test):
+        super().addSuccess(test)
+        self.str_success.append(self.parseTest(str(test)))
+
+    def addFailure(self, test, err):
+        super().addFailure(test, err)
+        self.str_failures.append(self.parseTest(str(test)))
+
+    def addError(self, test, err):
+        super().addError(test, err)
+        self.str_errors.append(self.parseTest(str(test)))
+
+    def stopTestRun(self):
+        super().stopTestRun()
+        print("Test run completed. Saving results...")
+        with open("bugsinpy_alltest_result.json", "w") as f:
+            json.dump({
+                "success": self.str_success,
+                "failures": self.str_failures,
+                "errors": self.str_errors
+            }, f, indent=4)
+            
+class CustomTestRunner(unittest.TextTestRunner):
+    resultclass = JSONTestResult
+    def __init__(self):
+        super().__init__()
+
+    def run(self, test):
+        print("Starting custom test run...")
+        result = super().run(test)
+        print("Custom test run finished.")
+        return result
+    
+def suite(test_dir:str):
+    test_suite = unittest.TestSuite()
+    test_suite.addTest(unittest.defaultTestLoader.discover(start_dir=os.getcwd()+"/"+test_dir))
+    return test_suite
+
+if __name__ == "__main__":
+    runner = CustomTestRunner()
+    test_suite = suite(sys.argv[1])
+    runner.run(test_suite)
+' > "$work_dir/$project_name/bugsinpy_unittest_runner.py"

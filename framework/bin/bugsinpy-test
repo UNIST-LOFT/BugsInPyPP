@@ -31,20 +31,20 @@ for arg in "$@"; do
 ____HALP
       exit 0
       ;;
-    -a) run_all="1";;
-    -r) relevant="1";;
-    -s) skip_build="1";;
   esac
 done
 
 single_test=""
 ###Read the flag of checkout
-while getopts t:w:j: flag
+while getopts t:w:j:ars flag
 do
    case "${flag}" in
       w) work_dir=${OPTARG};;
       t) single_test=${OPTARG};;
       j) parallel_job=${OPTARG};;
+      a) run_all="1";;
+      r) relevant="1";;
+      s) skip_build="1";;
    esac
 done
 
@@ -78,42 +78,39 @@ cd "$work_dir"
 default_conda_path=$HOME/anaconda3
 conda_path="${CONDA_PATH:-$default_conda_path}"
 source $conda_path/etc/profile.d/conda.sh
-# Cleanup requirements.txt from unwanted spaces
-sed -i -e '/^\s*#.*$/d' -e '/^\s*$/d' "$work_dir/bugsinpy_requirements.txt"
-# dos2unix is required to make sure requirements.txt is always the correct encoding
-dos2unix $work_dir/bugsinpy_requirements.txt &>/dev/null
 # Generate unique hash for the current enviroment
-bug_python_version=$(grep -o "3\..\.." "$work_dir/bugsinpy_bug.info")
-conda_env_name="$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)"
-project_name=$(grep -oP "(?<=project_name=).*" $work_dir/bugsinpy_bug.info)
-bug_id=$(grep -oP "(?<=bug_id=).*" $work_dir/bugsinpy_bug.info)
+bug_python_version=$(grep -o "3\..\.." "bugsinpy_bug.info")
+conda_env_name="$(grep -oP "(?<=project_name=).*" bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" bugsinpy_bug.info)"
+project_name=$(grep -oP "(?<=project_name=).*" bugsinpy_bug.info)
+bug_id=$(grep -oP "(?<=bug_id=).*" bugsinpy_bug.info)
 
 if ! conda activate $conda_env_name; then
    echo "conda env not found, please run bugsinpy-compile first"
    exit 1
 fi
 
-
 if [[ "$skip_build" == "0" ]]; then
+   echo "Running setup script..."
    ###Read and run setup.sh to apply the source change
    run_setup_all=""
-   if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
-      DONE=false
-      until $DONE ;do
-      read || DONE=true
-         run_setup_all+="$REPLY;"
-         echo $REPLY
-      done < "$work_dir/bugsinpy_setup.sh"
+   if [[ -f "bugsinpy_setup.sh" ]]; then
+      # DONE=false
+      # until $DONE ;do
+      # read || DONE=true
+      #    run_setup_all+="$REPLY;"
+      #    echo $REPLY
+      # done < "bugsinpy_setup.sh"
+      bash "bugsinpy_setup.sh" 2>&1
    fi
 
-   IFS=';' read -r -a run_setup <<< "$run_setup_all"
+   # IFS=';' read -r -a run_setup <<< "$run_setup_all"
 
-   for index in "${!run_setup[@]}"
-   do
-      run_setup_trail=${run_setup[index]} 
-      run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
-      $run_setup_now
-   done
+   # for index in "${!run_setup[@]}"
+   # do
+   #    run_setup_trail=${run_setup[index]} 
+   #    run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+   #    $run_setup_now
+   # done
 else
    echo "[INFO] Skip recompile due to -s (skip build) flag (no-source file changed)."
 fi
@@ -131,13 +128,13 @@ if [ "$REPLY" != "" ]; then
    fi
    # echo $REPLY
 fi
-done < "$work_dir/bugsinpy_run_test.sh"
+done < "bugsinpy_run_test.sh"
 IFS=';' read -r -a run_command <<< "$run_command_all"
 
-rm -f "$work_dir/bugsinpy_fail.txt"
-rm -f "$work_dir/bugsinpy_test.txt"
-rm -f "$work_dir/bugsinpy_alltest.txt"
-rm -f "$work_dir/bugsinpy_singletest.txt"
+rm -f "bugsinpy_fail.txt"
+rm -f "bugsinpy_test.txt"
+rm -f "bugsinpy_alltest.txt"
+rm -f "bugsinpy_singletest.txt"
 
 final_result=0
 
@@ -161,26 +158,52 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
          if [[ ${res_first##*$'\n'} == *"OK"* || ${res_first##*$'\n'} == *"pass"* || $res_first == *"passed"* || $res_first == *"OK "* ]]; then
             run_command_filter+="$run_command_now;"
          fi
-         echo "BugsInPy test: $run_command_now: $test_result" &>>"$work_dir/bugsinpy_test.txt"
-         echo "$res_first" &>>"$work_dir/bugsinpy_test.txt"
+         echo "BugsInPy test: $run_command_now: $test_result" &>>"bugsinpy_test.txt"
+         echo "$res_first" &>>"bugsinpy_test.txt"
       done
 elif [[ "$run_all" == "1" ]]; then
    echo "Run every test..."
    if [[ "$pytest" == "1" ]]; then
-      if [[ "$project_name" == "pandas" ]]; then
+      if [[ "$project_name" == "ansible" ]]; then
+         echo "python -m pytest test/units/" &>>"bugsinpy_alltest.txt"
+         python -m pytest test/units/ --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
+      elif [[ "$project_name" == "httpie" && $bug_id == "5" ]]; then
+         echo "python -m pytest test/units/" &>>"bugsinpy_alltest.txt"
+         python -m pytest tests/tests.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
+      elif [[ "$project_name" == "luigi" ]]; then
+         echo "python -m pytest" &>>"bugsinpy_alltest.txt"
+         python -m pytest test --ignore test/task_serialize_test.py --ignore test/_mysqldb_test.py \
+               --ignore test/contrib/azureblob_test.py --ignore test/contrib/batch_test.py --ignore test/contrib/ecs_test.py \
+               --ignore test/contrib/hdfs/ --ignore test/remote_scheduler_test.py --ignore test/rpc_test.py \
+               --ignore test/scheduler_parameter_visibilities_test.py --ignore test/server_test.py \
+               --ignore test/visualiser/visualiser_test.py \
+               --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
+      elif [[ "$project_name" == "pandas" ]]; then
          if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
-            echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"$work_dir/bugsinpy_alltest.txt"
-            pytest pandas --ignore=pandas/tests/io/test_parquet.py 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+            echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"bugsinpy_alltest.txt"
+            pytest pandas --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings --ignore=pandas/tests/io/test_parquet.py 2>&1 | tee -a "bugsinpy_alltest.txt"
          else
-            echo "pytest pandas" &>>"$work_dir/bugsinpy_alltest.txt"
-            pytest pandas 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+            echo "pytest pandas" &>>"bugsinpy_alltest.txt"
+            pytest pandas --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
          fi
+      elif [[ "$project_name" == "sanic" && $bug_id == "5" ]]; then
+         echo "python -m pytest " &>>"bugsinpy_alltest.txt"
+         python -m pytest --ignore tests/test_redirect.py --ignore tests/test_server_events.py --ignore tests/test_signal_handlers.py \
+               --ignore tests/test_worker.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       elif [[ "$project_name" == "tqdm" ]]; then
-         echo "python -m pytest tqdm/tests/tests_*.py" &>>"$work_dir/bugsinpy_alltest.txt"
-         python -m pytest tqdm/tests/tests_*.py 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+         echo "python -m pytest tqdm/tests/tests_*.py" &>>"bugsinpy_alltest.txt"
+         python -m pytest tqdm/tests/tests_*.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       else
-         echo "python -m pytest" &>>"$work_dir/bugsinpy_alltest.txt"
-         python -m pytest 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+         echo "python -m pytest" &>>"bugsinpy_alltest.txt"
+         python -m pytest --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       fi
    else
       echo "Run Unittest"
@@ -193,7 +216,7 @@ elif [[ "$run_all" == "1" ]]; then
          IFS=';' read -r -a test_file <<< "$test_file_all"
          test_file_now=${test_file[0]}
       fi
-      done < "$work_dir/bugsinpy_bug.info"
+      done < "bugsinpy_bug.info"
 
       echo "$test_file_now"
       stop_loop_test="0"
@@ -218,23 +241,20 @@ elif [[ "$run_all" == "1" ]]; then
       done
 
       echo "$access_test"
-      echo "python -m unittest discover -s $access_test"
-      res_first=$(python -m unittest discover $access_test 2>&1)
-      echo "$res_first"
-      echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
+      echo "python -m unittest discover -s $access_test" | tee -a "bugsinpy_alltest.txt"
+      python bugsinpy_unittest_runner.py $access_test 2>&1 | tee -a "bugsinpy_alltest.txt"
       # echo "python -m unittest discover $access_test"
       # if [[ "$project_name" == "black" ]]; then
       #    echo "python -m unittest discover -s $access_test"
       #    res_first=$(python -m unittest discover $access_test 2>&1)
       #    echo "$res_first"
-      #    echo "python -m unittest discover $access_test" &>>"$work_dir/bugsinpy_alltest.txt"
-      #    echo "$res_first" &>>"$work_dir/bugsinpy_alltest.txt"
+      #    echo "python -m unittest discover $access_test" &>>"bugsinpy_alltest.txt"
+      #    echo "$res_first" &>>"bugsinpy_alltest.txt"
       # else
       #    echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job"
-      #    echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job" &>>"$work_dir/bugsinpy_alltest.txt"
+      #    echo "unittest-parallel -t $work_dir -s $access_test -j $parallel_job" &>>"bugsinpy_alltest.txt"
       #    # res_first=$(python -m unittest discover $access_test 2>&1)
-      #    unittest-parallel -t $work_dir -s $access_test -j $parallel_job 2>&1 | tee "$work_dir/bugsinpy_alltest.txt"
+      #    unittest-parallel -t $work_dir -s $access_test -j $parallel_job 2>&1 | tee "bugsinpy_alltest.txt"
       #    #python -m unittest
       #    test_result=${PIPESTATUS[0]}
       # fi
@@ -249,14 +269,14 @@ elif [ "$single_test" != "" ]; then
       res_first=$(pytest $single_test 2>&1)
       test_result=$?
       echo "$single_test: $test_result"
-      echo "BugsInPy test: $single_test: $test_result" &>>"$work_dir/bugsinpy_singletest.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_singletest.txt"
+      echo "BugsInPy test: $single_test: $test_result" &>>"bugsinpy_singletest.txt"
+      echo "$res_first" &>>"bugsinpy_singletest.txt"
    else
       res_first=$(python -m unittest -q $single_test 2>&1)
       test_result=$?
       echo "$single_test: $test_result"
-      echo "BugsInPy test: $single_test: $test_result" &>>"$work_dir/bugsinpy_singletest.txt"
-      echo "$res_first" &>>"$work_dir/bugsinpy_singletest.txt"
+      echo "BugsInPy test: $single_test: $test_result" &>>"bugsinpy_singletest.txt"
+      echo "$res_first" &>>"bugsinpy_singletest.txt"
    fi
 
    if [[ $test_result -ne 0 ]]; then

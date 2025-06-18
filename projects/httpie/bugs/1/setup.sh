@@ -1,1 +1,2 @@
-python setup.py install
+sed -i 's|pytest.fixture(autouse=True)(httpbin_ca_bundle)|# pytest.fixture(autouse=True)(httpbin_ca_bundle)|g' tests/conftest.py
+pip3 install .

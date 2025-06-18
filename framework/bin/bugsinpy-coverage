@@ -1,17 +1,18 @@
 #!/bin/bash
 
-usage="-w work_dir
-             The working directory to run the test. Default will be the current directory.
-       -t single_test
-             Run coverage from single test case by input. Default will run coverage from test cases that relevant from bugs. Format for pytest: <test_file_path>::<test_method>. Format for unittest: <test_file_path_without.py>.<test_class>.<test_method> . Use bugsinpy-info to get the information about the project.
-       -a
-             Run coverage from all test cases in the project. Default will run coverage from test cases that relevant from bugs
-       -r
-             Run coverage from test cases that relevant from bugs (Default)
+usage="
+    -w work_dir
+        The working directory to run the test. Default will be the current directory.
+    -t single_test
+        Run coverage from single test case by input. Default will run coverage from test cases that relevant from bugs. Format for pytest: <test_file_path>::<test_method>. Format for unittest: <test_file_path_without.py>.<test_class>.<test_method> . Use bugsinpy-info to get the information about the project.
+    -a
+        Run coverage from all test cases in the project. Default will run coverage from test cases that relevant from bugs
+    -r
+        Run coverage from test cases that relevant from bugs (Default)
+    -s
+        Run single test without re-compile(source file not changed)
 "
 
-run_all="0"
-relevant="0"
 case $1 in
  -[h?] | --help)
     cat <<-____HALP
@@ -19,17 +20,22 @@ case $1 in
         $usage
 ____HALP
         exit 0;;
- -a) run_all="1";;
- -r) relevant="1";;
 esac
+
+run_all="0"
+relevant="0"
 
 single_test=""
 ###Read the flag of checkout
-while getopts t:w: flag
+while getopts ht:w:sar flag
 do
     case "${flag}" in
+        h) echo "Usage: $usage"; exit 0;;
         w) work_dir=${OPTARG};;
         t) single_test=${OPTARG};;
+        s) skip_build="1";;
+        a) run_all="1";;
+        r) relevant="1";;
     esac
 done
 
@@ -58,18 +64,56 @@ if [[ "$relevant" == "1" ]]; then
    single_test=""
 fi
 
-rm -f "$work_dir/coverage_bugsinpy.txt"
-rm -f "$work_dir/coverage_singletest_bugsinpy.txt"
-rm -f "$work_dir/coverage_alltest_bugsinpy.txt"
+rm -f "$work_dir/bugsinpy_coverage.txt"
+rm -f "$work_dir/bugsinpy_coverage_singletest.txt"
+rm -f "$work_dir/bugsinpy_coverage_alltest.txt"
 
 ###Activate environment
 cd "$work_dir"
-if [ -d "env/Scripts" ]; then
-  source env/Scripts/activate
-else
-  source env/bin/activate
+default_conda_path=$HOME/anaconda3
+conda_path="${CONDA_PATH:-$default_conda_path}"
+source $conda_path/etc/profile.d/conda.sh
+bug_python_version=$(grep -o "3\..\.." "bugsinpy_bug.info")
+conda_env_name="$(grep -oP "(?<=project_name=).*" bugsinpy_bug.info)_$(grep -oP "(?<=bug_id=).*" bugsinpy_bug.info)"
+project_name=$(grep -oP "(?<=project_name=).*" bugsinpy_bug.info)
+bug_id=$(grep -oP "(?<=bug_id=).*" bugsinpy_bug.info)
+
+if ! conda activate $conda_env_name; then
+   echo "conda env not found, please run bugsinpy-compile first"
+   exit 1
 fi
-pip install coverage
+
+if [[ "$skip_build" == "0" ]]; then
+   echo "Running setup script..."
+   ###Read and run setup.sh to apply the source change
+   run_setup_all=""
+   if [[ -f "bugsinpy_setup.sh" ]]; then
+      # DONE=false
+      # until $DONE ;do
+      # read || DONE=true
+      #    run_setup_all+="$REPLY;"
+      #    echo $REPLY
+      # done < "bugsinpy_setup.sh"
+      bash "bugsinpy_setup.sh" 2>&1
+   fi
+
+   # IFS=';' read -r -a run_setup <<< "$run_setup_all"
+
+   # for index in "${!run_setup[@]}"
+   # do
+   #    run_setup_trail=${run_setup[index]} 
+   #    run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+   #    $run_setup_now
+   # done
+else
+   echo "[INFO] Skip recompile due to -s (skip build) flag (no-source file changed)."
+fi
+
+# Check coverage package
+if ! conda list | grep -q coverage; then
+   echo "Coverage package not found, installing..."
+   conda install -y coverage
+fi
 
 pytest="0"
 #read file run_test.sh
@@ -83,7 +127,7 @@ if [ "$REPLY" != "" ]; then
        pytest="1"
    fi
 fi
-done < "$work_dir/bugsinpy_run_test.sh"
+done < "bugsinpy_run_test.sh"
 IFS=';' read -r -a run_command <<< "$run_command_all"
 
 
@@ -100,14 +144,14 @@ if [[ "$pytest" == "1" ]]; then
      run_command_now=$(echo $run_command_trail | sed -e 's/\r//g')
   
      coverage=$(coverage run -m $run_command_now 2>&1)
-     echo "coverage run -m $run_command_now" &>>"$work_dir/coverage_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_bugsinpy.txt"
+     echo "coverage run -m $run_command_now" &>>"bugsinpy_coverage.txt"
+     echo "$coverage" &>>"bugsinpy_coverage.txt"
   
      coverage_report=$(coverage report -m 2>&1)
      echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_bugsinpy.txt"
+     printf "\nCoverage Report\n" &>>"bugsinpy_coverage.txt"
+     echo "$coverage_report" &>>"bugsinpy_coverage.txt"
+     printf "\n\n" &>>"bugsinpy_coverage.txt"
 
   done
 else
@@ -139,31 +183,37 @@ else
      
      coverage=$(coverage run -m $run_command_now 2>&1)
      echo "$coverage"
-     echo "coverage run -m $run_command_now" &>>"$work_dir/coverage_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_bugsinpy.txt"
+     echo "coverage run -m $run_command_now" &>>"bugsinpy_coverage.txt"
+     echo "$coverage" &>>"bugsinpy_coverage.txt"
 
      coverage_report=$(coverage report -m 2>&1)
      echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_bugsinpy.txt"
+     printf "\nCoverage Report\n" &>>"bugsinpy_coverage.txt"
+     echo "$coverage_report" &>>"bugsinpy_coverage.txt"
+     printf "\n\n" &>>"bugsinpy_coverage.txt"
 
    done
 fi
 
 elif [[ "$run_all" == "1" ]]; then
   if [[ "$pytest" == "1" ]]; then
-     coverage=$(coverage run -m pytest 2>&1)
-     echo "$coverage"
-     echo "coverage run -m pytest" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-
-     coverage_report=$(coverage report -m 2>&1)
-     echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-
+    echo "Run pytest"
+    if [[ "$project_name" == "pandas" ]]; then
+        if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
+            echo "coverage run -m pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest pandas --ignore=pandas/tests/io/test_parquet.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+        else
+            echo "coverage run -m pytest pandas" &>>"bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest pandas 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+        fi
+    elif [[ "$project_name" == "tqdm" ]]; then
+        echo "coverage run -m pytest tqdm/tests/tests_*.py" &>>"bugsinpy_coverage_alltest.txt"
+        coverage run --omit=/tmp/* -m pytest tqdm/tests/tests_*.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+    else
+        echo "coverage run -m pytest" &>>"bugsinpy_coverage_alltest.txt"
+        coverage run --omit=/tmp/* -m pytest 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+    fi     
+    coverage json --omit=/tmp/* -o bugsinpy_coverage_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
   else
      echo "Run Unittest" 
      ###Read bug.info file
@@ -175,7 +225,7 @@ elif [[ "$run_all" == "1" ]]; then
         IFS=';' read -r -a test_file <<< "$test_file_all"
         test_file_now=${test_file[0]}
      fi
-     done < "$work_dir/bugsinpy_bug.info"
+     done < "bugsinpy_bug.info"
 
      echo "$test_file_now"
      stop_loop_test="0"
@@ -204,43 +254,35 @@ elif [[ "$run_all" == "1" ]]; then
      echo "$access_test"
      echo "coverage run -m unittest discover $access_test"
 
-     coverage=$(coverage run -m unittest discover $access_test 2>&1)
-     echo "$coverage"
-     echo "coverage run -m unittest discover $access_test" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-
-     coverage_report=$(coverage report -m 2>&1)
-     echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_alltest_bugsinpy.txt"
+     coverage run --omit=/tmp/* -m unittest discover $access_test 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+     coverage json --omit=/tmp/* -o bugsinpy_coverage_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
   fi
 
 elif [ "$single_test" != "" ]; then
   if [[ "$pytest" == "1" ]]; then
      coverage=$(coverage run -m pytest $single_test 2>&1)
      echo "$coverage"
-     echo "coverage run -m pytest $single_test" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
+     echo "coverage run -m pytest $single_test" &>>"bugsinpy_coverage_singletest.txt"
+     echo "$coverage" &>>"bugsinpy_coverage_singletest.txt"
 
      coverage_report=$(coverage report -m 2>&1)
      echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
+     printf "\nCoverage Report\n" &>>"bugsinpy_coverage_singletest.txt"
+     echo "$coverage_report" &>>"bugsinpy_coverage_singletest.txt"
+     printf "\n\n" &>>"bugsinpy_coverage_singletest.txt"
   else
      coverage=$(coverage run -m unittest -q $single_test 2>&1)
      echo "$coverage"
-     echo "coverage run -m unittest -q $single_test" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     echo "$coverage" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
+     echo "coverage run -m unittest -q $single_test" &>>"bugsinpy_coverage_singletest.txt"
+     echo "$coverage" &>>"bugsinpy_coverage_singletest.txt"
 
      coverage_report=$(coverage report -m 2>&1)
      echo "$coverage_report"
-     printf "\nCoverage Report\n" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     echo "$coverage_report" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
-     printf "\n\n" &>>"$work_dir/coverage_singletest_bugsinpy.txt"
+     printf "\nCoverage Report\n" &>>"bugsinpy_coverage_singletest.txt"
+     echo "$coverage_report" &>>"bugsinpy_coverage_singletest.txt"
+     printf "\n\n" &>>"bugsinpy_coverage_singletest.txt"
   fi
 fi
 
 ###Deactivate the environment
-deactivate
+conda deactivate

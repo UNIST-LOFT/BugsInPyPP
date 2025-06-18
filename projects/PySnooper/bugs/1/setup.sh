@@ -1,2 +1,2 @@
-python setup.py install
+pip3 install .
 pip install python_toolbox
