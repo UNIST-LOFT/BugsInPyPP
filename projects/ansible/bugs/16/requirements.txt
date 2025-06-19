@@ -11,3 +11,8 @@ pycparser==2.20
 PyYAML==5.3.1
 six==1.14.0
 zipp==3.1.0
+requests
+pytz
+urllib3
+pytest==3.10.1
+pytest-mock==1.2

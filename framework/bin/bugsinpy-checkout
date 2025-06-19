@@ -208,6 +208,9 @@ rm -f "$work_dir/$project_name/bugsinpy_compile_flag"
 if [[ -e "$project_location/bugs/$bug_id/setup.sh" ]]; then
    cp -f "$project_location/bugs/$bug_id/setup.sh" "$work_dir/$project_name/bugsinpy_setup.sh"
 fi
+if [[ -e "$project_location/bugs/$bug_id/install.sh" ]]; then
+   cp -f "$project_location/bugs/$bug_id/install.sh" "$work_dir/$project_name/bugsinpy_install.sh"
+fi
 
 # Add custom unittest runner to save report in JSON format
 echo '#!/usr/bin/env python
@@ -274,3 +277,12 @@ if __name__ == "__main__":
     test_suite = suite(sys.argv[1])
     runner.run(test_suite)
 ' > "$work_dir/$project_name/bugsinpy_unittest_runner.py"
+
+cd "$work_dir/$project_name"
+if [[ -f "bugsinpy_setup.sh" ]]; then
+   echo "Running setup script..."
+   chmod +x bugsinpy_setup.sh
+   bash bugsinpy_setup.sh
+else
+   echo "No setup script found, skipping setup."
+fi

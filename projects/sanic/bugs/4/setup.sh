@@ -1,5 +1,1 @@
-python setup.py build
-pip3 install .
-pip3 install -e .[dev]
-pip3 install -e .
-pip3 install -e .[test]
+sed -i 's|\"requests-async==0.5.0\",||g' setup.py

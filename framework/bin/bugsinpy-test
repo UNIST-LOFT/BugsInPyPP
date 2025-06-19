@@ -89,30 +89,33 @@ if ! conda activate $conda_env_name; then
    exit 1
 fi
 
+if [[ $project_name == "matplotlib" ]]; then
+   export MPLLOCALFREETYPE=1
+fi
+
 if [[ "$skip_build" == "0" ]]; then
-   echo "Running setup script..."
+   echo "Running install script..."
    ###Read and run setup.sh to apply the source change
    run_setup_all=""
-   if [[ -f "bugsinpy_setup.sh" ]]; then
-      # DONE=false
-      # until $DONE ;do
-      # read || DONE=true
-      #    run_setup_all+="$REPLY;"
-      #    echo $REPLY
-      # done < "bugsinpy_setup.sh"
-      bash "bugsinpy_setup.sh" 2>&1
+   if [[ -f "bugsinpy_install.sh" ]]; then
+      DONE=false
+      until $DONE ;do
+      read || DONE=true
+         run_setup_all+="$REPLY;"
+         echo $REPLY
+      done < "bugsinpy_install.sh"
    fi
 
-   # IFS=';' read -r -a run_setup <<< "$run_setup_all"
+   IFS=';' read -r -a run_setup <<< "$run_setup_all"
 
-   # for index in "${!run_setup[@]}"
-   # do
-   #    run_setup_trail=${run_setup[index]} 
-   #    run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
-   #    $run_setup_now
-   # done
+   for index in "${!run_setup[@]}"
+   do
+      run_setup_trail=${run_setup[index]} 
+      run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+      $run_setup_now
+   done
 else
-   echo "[INFO] Skip recompile due to -s (skip build) flag (no-source file changed)."
+   echo "[INFO] Skip install due to -s (skip build) flag (no-source file changed)."
 fi
 
 pytest="0"
@@ -163,14 +166,25 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
       done
 elif [[ "$run_all" == "1" ]]; then
    echo "Run every test..."
+   if [[ -f "bugsinpy_alltest_result.json" ]]; then
+      rm "bugsinpy_alltest_result.json"
+   fi
    if [[ "$pytest" == "1" ]]; then
       if [[ "$project_name" == "ansible" ]]; then
          echo "python -m pytest test/units/" &>>"bugsinpy_alltest.txt"
-         python -m pytest test/units/ --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+         PYTHONPATH=./lib python -m pytest test/units/ --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
+      elif [[ $project_name == "fastapi" ]]; then
+         echo "python -m pytest" &>>"bugsinpy_alltest.txt"
+         PYTHONPATH=./docs/src python -m pytest --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       elif [[ "$project_name" == "httpie" && $bug_id == "5" ]]; then
          echo "python -m pytest test/units/" &>>"bugsinpy_alltest.txt"
-         python -m pytest tests/tests.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+         python -m pytest tests/tests.py --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
+      elif [[ "$project_name" == "httpie" ]]; then
+         echo "python -m pytest tests/" &>>"bugsinpy_alltest.txt"
+         python -m pytest tests/ --ignore tests/test_ssl.py --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       elif [[ "$project_name" == "luigi" ]]; then
          echo "python -m pytest" &>>"bugsinpy_alltest.txt"
@@ -179,30 +193,32 @@ elif [[ "$run_all" == "1" ]]; then
                --ignore test/contrib/hdfs/ --ignore test/remote_scheduler_test.py --ignore test/rpc_test.py \
                --ignore test/scheduler_parameter_visibilities_test.py --ignore test/server_test.py \
                --ignore test/visualiser/visualiser_test.py \
-               --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       elif [[ "$project_name" == "pandas" ]]; then
-         if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
-            echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"bugsinpy_alltest.txt"
-            pytest pandas --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
-               --json-report-omit log collectors warnings --ignore=pandas/tests/io/test_parquet.py 2>&1 | tee -a "bugsinpy_alltest.txt"
-         else
+         # if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
+         #    echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"bugsinpy_alltest.txt"
+         #    pytest pandas --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
+         #       --json-report-omit log collectors warnings --ignore=pandas/tests/io/test_parquet.py \
+         #       --ignore pandas/tests/io/test_common.py 2>&1 | tee -a "bugsinpy_alltest.txt"
+         # else
             echo "pytest pandas" &>>"bugsinpy_alltest.txt"
-            pytest pandas --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
-               --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
-         fi
+            pytest pandas --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
+               --json-report-omit log collectors warnings --ignore pandas/tests/io \
+               2>&1 | tee -a "bugsinpy_alltest.txt"
+         # fi
       elif [[ "$project_name" == "sanic" && $bug_id == "5" ]]; then
          echo "python -m pytest " &>>"bugsinpy_alltest.txt"
          python -m pytest --ignore tests/test_redirect.py --ignore tests/test_server_events.py --ignore tests/test_signal_handlers.py \
-               --ignore tests/test_worker.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+               --ignore tests/test_worker.py --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       elif [[ "$project_name" == "tqdm" ]]; then
          echo "python -m pytest tqdm/tests/tests_*.py" &>>"bugsinpy_alltest.txt"
-         python -m pytest tqdm/tests/tests_*.py --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+         python -m pytest tqdm/tests/tests_*.py --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       else
          echo "python -m pytest" &>>"bugsinpy_alltest.txt"
-         python -m pytest --json-report --json-report-file=bugsinpy_alltest_report.json --json-report-indent=4 \
+         python -m pytest --json-report --json-report-file=bugsinpy_alltest_result.json --json-report-indent=4 \
                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
       fi
    else

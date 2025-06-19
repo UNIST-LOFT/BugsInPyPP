@@ -77,6 +77,9 @@ if ! conda activate $conda_env_name; then
    exit 1
 fi
 
+if [[ $project_name == "matplotlib" ]]; then
+   export MPLLOCALFREETYPE=1
+fi
 ###Add pythonpath
 pythonpath_set=""
 pythonpath_without_folder=""
@@ -114,22 +117,6 @@ elif [[ "$REPLY" == "pythonpath"* ]]; then
 fi
 done < "$work_dir/bugsinpy_bug.info"
 
-
-###Read setup.sh
-echo "Running setup script..."
-run_setup_all=""
-if [[ -f "$work_dir/bugsinpy_setup.sh" ]]; then
-   # DONE=false
-   # until $DONE ;do
-   # read || DONE=true
-   #    run_setup_all+="$REPLY;"
-   #    echo $REPLY
-   # done < "$work_dir/bugsinpy_setup.sh"
-   bash "$work_dir/bugsinpy_setup.sh" 2>&1
-fi
-
-# IFS=';' read -r -a run_setup <<< "$run_setup_all"
-
 ###Run setup.sh
 echo "Installing dependencies..."
 #dos2unix $work_dir/bugsinpy_requirements.txt
@@ -138,32 +125,47 @@ if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
    # Iterate requirements.txt and install line by line,
    # this is similar to the original approach but avoids issues with editable dependencies
    # like this -e git+https://
-   sed -e '/^\s*#.*$/d' -e '/^\s*$/d' $work_dir/bugsinpy_requirements.txt | xargs -I {} pip install {} | true
-fi
-# Install pytest-xdist and unittest-parallel to run tests in parallel
-# python3 -m pip install pytest-xdist==2.3.0 
-# python3 -m pip install unittest-parallel
-
-# for index in "${!run_setup[@]}"
-# do
-#    run_setup_trail=${run_setup[index]} 
-#    run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
-#    $run_setup_now
-# done
-  
-###Install requirement
-#pip install -r "$work_dir/bugsinpy_requirements.txt"
-if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
-   echo "Install dependencies..."
-   # Iterate requirements.txt and install line by line,
-   # this is similar to the original approach but avoids issues with editable dependencies
-   # like this -e git+https://
    sed -e '/^\s*#.*$/d' -e '/^\s*$/d' $work_dir/bugsinpy_requirements.txt | xargs -I {} pip install {} || true
 else
    echo "No special dependencies found, skip!"
 fi
-pip install pytest-metadata==2.0.4
+# Install pytest-xdist and unittest-parallel to run tests in parallel
+# python3 -m pip install pytest-xdist==2.3.0 
+# python3 -m pip install unittest-parallel
+  
+###Install requirement
+#pip install -r "$work_dir/bugsinpy_requirements.txt"
+# if grep -q '[^[:space:]]' "$work_dir/bugsinpy_requirements.txt"; then
+#    echo "Install dependencies..."
+#    # Iterate requirements.txt and install line by line,
+#    # this is similar to the original approach but avoids issues with editable dependencies
+#    # like this -e git+https://
+#    sed -e '/^\s*#.*$/d' -e '/^\s*$/d' $work_dir/bugsinpy_requirements.txt | xargs -I {} pip install {} || true
+# else
+#    echo "No special dependencies found, skip!"
+# fi
+pip install 'pytest-metadata<=2.0.4'
 pip install pytest-json-report coverage
+
+echo "Running install script..."
+run_setup_all=""
+if [[ -f "$work_dir/bugsinpy_install.sh" ]]; then
+   DONE=false
+   until $DONE ;do
+   read || DONE=true
+      run_setup_all+="$REPLY;"
+      echo $REPLY
+   done < "$work_dir/bugsinpy_install.sh"
+fi
+
+IFS=';' read -r -a run_setup <<< "$run_setup_all"
+for index in "${!run_setup[@]}"
+do
+   run_setup_trail=${run_setup[index]} 
+   run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
+   $run_setup_now
+done
+
 conda deactivate
 
 

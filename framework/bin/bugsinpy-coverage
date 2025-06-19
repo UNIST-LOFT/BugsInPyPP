@@ -83,6 +83,10 @@ if ! conda activate $conda_env_name; then
    exit 1
 fi
 
+if [[ $project_name == "matplotlib" ]]; then
+   export MPLLOCALFREETYPE=1
+fi
+
 if [[ "$skip_build" == "0" ]]; then
    echo "Running setup script..."
    ###Read and run setup.sh to apply the source change
