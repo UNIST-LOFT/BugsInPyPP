@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-framework_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+framework_location="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd)"
 
 usage="
         -p project_name
@@ -15,54 +15,54 @@ usage="
 "
 
 case $1 in
- -[h?] | --help)
-    cat <<-____HALP
+    -[h?] | --help)
+        cat <<- ____HALP
         Usage: ${0##*/} [ --help ]
         $usage
 ____HALP
-        exit 0;;
+        exit 0
+        ;;
 esac
 
 ###Read the flag of checkout
-while getopts p:i:v:w: flag
-do
+while getopts p:i:v:w: flag; do
     case "${flag}" in
-        p) project_name=${OPTARG};;
-        i) bug_id=${OPTARG};;
-        v) version_id=${OPTARG};;
-        w) work_dir=${OPTARG};;
+        p) project_name=${OPTARG} ;;
+        i) bug_id=${OPTARG} ;;
+        v) version_id=${OPTARG} ;;
+        w) work_dir=${OPTARG} ;;
     esac
 done
 
 ###Project name and bug id are mandatory
-if [ "$project_name" == "" ]; then 
-   echo "Please input project name"
-   exit 1
+if [ "$project_name" == "" ]; then
+    echo "Please input project name"
+    exit 1
 fi
 
-if [ "$bug_id" == "" ]; then 
-   echo "Please input bug id"
-   exit 1
+if [ "$bug_id" == "" ]; then
+    echo "Please input bug id"
+    exit 1
 fi
-if [ "$version_id" == "" ]; then 
-   version_id="1"
+if [ "$version_id" == "" ]; then
+    version_id="1"
 elif [[ "$version_id" != "1" && "$version_id" != "0" ]]; then
-   version_id="1"
+    version_id="1"
 fi
 
-if [ "$work_dir" == "" ]; then 
-   work_dir="$framework_location/temp"
+if [ "$work_dir" == "" ]; then
+    work_dir="$framework_location/temp"
 fi
 
-if [[ $work_dir == */ ]]; then 
-   temp_work_dir="$work_dir"
-   work_dir=${temp_work_dir::-1}
+if [[ $work_dir == */ ]]; then
+    temp_work_dir="$work_dir"
+    work_dir=${temp_work_dir::-1}
 fi
 
-echo "PROJECT_NAME: $project_name";
-echo "BUG_ID: $bug_id";
-echo "VERSION_ID: $version_id";
-echo "WORK_DIR: $work_dir";
+echo "PROJECT_NAME: $project_name"
+echo "BUG_ID: $bug_id"
+echo "VERSION_ID: $version_id"
+echo "WORK_DIR: $work_dir"
 
 cd "$framework_location"
 cd ..
@@ -72,14 +72,14 @@ bugsinpy_location=$(pwd)
 ###Check if project exist
 project_location="$bugsinpy_location/projects/$project_name"
 if [ ! -d "$project_location" ]; then
-  echo "Project $project_name does not exist, please check the project name"
-  exit 1
+    echo "Project $project_name does not exist, please check the project name"
+    exit 1
 fi
 
 ###Check if bug exist
 if [ ! -d "$project_location/bugs/$bug_id" ]; then
-  echo "Bug number $bug_id does not exist, please check the bug id"
-  exit 1
+    echo "Bug number $bug_id does not exist, please check the bug id"
+    exit 1
 fi
 
 cd "$project_location"
@@ -89,28 +89,27 @@ githubURL=""
 checkfurther="NO"
 
 ###Read the project.info
-while IFS= read -r line
-do
-  if [[ "$line" == "github_url="* ]]; then
-     githubURL="$(cut -d'"' -f 2 <<< $line)"
-     echo "$githubURL"
-     githubName="${githubUrl##*/}"
-     if [[ "$githubName" == "" ]]; then
-         temp="${githubUrl%?}"
-         githubName="${temp##*/}"
-     fi
-  elif [[ "$line" == 'status="OK"'* ]]; then
-     checkfurther="YES"
-     #clone project if status OK
-  fi
-  echo "$line"
+while IFS= read -r line; do
+    if [[ "$line" == "github_url="* ]]; then
+        githubURL="$(cut -d'"' -f 2 <<< $line)"
+        echo "$githubURL"
+        githubName="${githubUrl##*/}"
+        if [[ "$githubName" == "" ]]; then
+            temp="${githubUrl%?}"
+            githubName="${temp##*/}"
+        fi
+    elif [[ "$line" == 'status="OK"'* ]]; then
+        checkfurther="YES"
+        #clone project if status OK
+    fi
+    echo "$line"
 done < "$input"
 
 ###Clone the project
 if [[ "$checkfurther" == "NO" ]]; then
-  exit 0
+    exit 0
 elif [[ "$checkfurther" == "YES" ]]; then
-   git clone "$githubURL" "$work_dir/$project_name"
+    git clone "$githubURL" "$work_dir/$project_name"
 fi
 
 cd "$project_location/bugs/$bug_id"
@@ -120,23 +119,23 @@ fix_commit=""
 
 ###Read bug.info file
 DONE=false
-until $DONE ;do
-read || DONE=true
-if [[ "$REPLY" == "buggy_commit_id"* ]]; then
-   buggy_commit="$(cut -d'"' -f 2 <<< $REPLY)"
-elif [[ "$REPLY" == "fixed_commit_id"* ]]; then
-   fix_commit="$(cut -d'"' -f 2 <<< $REPLY)"
-elif [[ "$REPLY" == "test_file"* ]]; then
-   test_file_all="$(cut -d'"' -f 2 <<< $REPLY)"
-   IFS=';' read -r -a test_file <<< "$test_file_all"
-elif [[ "$REPLY" == "pythonpath"* ]]; then
-   pythonpath_all="$(cut -d'"' -f 2 <<< $REPLY)"
-   if [ "$pythonpath_all" != "" ]; then
-       temp_folder=":${folder_location}/"
-       pythonpath_set=${pythonpath_all//;/$temp_folder}
-       pythonpath_set="${folder_location}/${pythonpath_set}"
-   fi
-fi
+until $DONE; do
+    read || DONE=true
+    if [[ "$REPLY" == "buggy_commit_id"* ]]; then
+        buggy_commit="$(cut -d'"' -f 2 <<< $REPLY)"
+    elif [[ "$REPLY" == "fixed_commit_id"* ]]; then
+        fix_commit="$(cut -d'"' -f 2 <<< $REPLY)"
+    elif [[ "$REPLY" == "test_file"* ]]; then
+        test_file_all="$(cut -d'"' -f 2 <<< $REPLY)"
+        IFS=';' read -r -a test_file <<< "$test_file_all"
+    elif [[ "$REPLY" == "pythonpath"* ]]; then
+        pythonpath_all="$(cut -d'"' -f 2 <<< $REPLY)"
+        if [ "$pythonpath_all" != "" ]; then
+            temp_folder=":${folder_location}/"
+            pythonpath_set=${pythonpath_all//;/$temp_folder}
+            pythonpath_set="${folder_location}/${pythonpath_set}"
+        fi
+    fi
 done < bug.info
 
 ###Reset head to version id
@@ -146,51 +145,47 @@ git reset --hard "$fix_commit"
 check_file=$(git show --name-only 2>&1)
 change_file_all=""
 while IFS= read -r line; do
-   if [ "$line" != "" ]; then
-      if [[ -e "$work_dir/$project_name/$line" ]]; then
+    if [ "$line" != "" ]; then
+        if [[ -e "$work_dir/$project_name/$line" ]]; then
             change_file_all+="$line;"
             if [ $version_id == "1" ]; then
                 cp -v "$work_dir/$project_name/$line" "$project_location/bugs/$bug_id"
             fi
-      fi
-   fi
+        fi
+    fi
 done <<< "$check_file"
 IFS=';' read -r -a change_file <<< "$change_file_all"
 
-
 ###copy test file from project to temp
-for index in "${!test_file[@]}"
-do
-   test_file_now=${test_file[index]}
-   cp -v "$work_dir/$project_name/$test_file_now" "$project_location/bugs/$bug_id"
+for index in "${!test_file[@]}"; do
+    test_file_now=${test_file[index]}
+    cp -v "$work_dir/$project_name/$test_file_now" "$project_location/bugs/$bug_id"
 done
-   
+
 cd "$work_dir/$project_name"
 git reset --hard "$buggy_commit"
 git clean -f -d
 
 ###Copy test file from fixed to buggy
-for index in "${!test_file[@]}"
-do
-   test_file_now=${test_file[index]}
-   string1="${test_file_now%/*}"
-   string2="${test_file_now##*/}"
-   mv -f  "$project_location/bugs/$bug_id/$string2" "$work_dir/$project_name/$string1"
+for index in "${!test_file[@]}"; do
+    test_file_now=${test_file[index]}
+    string1="${test_file_now%/*}"
+    string2="${test_file_now##*/}"
+    mv -f "$project_location/bugs/$bug_id/$string2" "$work_dir/$project_name/$string1"
 done
 
 patch_fix_all=""
 ###Copy other change file from fixed to buggy if version is fixed commit
-for index in "${!change_file[@]}"
-do
-   change_file_now=${change_file[index]}
-   string1="${change_file_now%/*}"
-   string2="${change_file_now##*/}"
-   if [[ -e "$project_location/bugs/$bug_id/$string2" ]]; then
-       patch_fix_all+="$change_file_now;"
-       if [ $version_id == "1" ]; then
-           mv -f  "$project_location/bugs/$bug_id/$string2" "$work_dir/$project_name/$string1"
-       fi
-   fi
+for index in "${!change_file[@]}"; do
+    change_file_now=${change_file[index]}
+    string1="${change_file_now%/*}"
+    string2="${change_file_now##*/}"
+    if [[ -e "$project_location/bugs/$bug_id/$string2" ]]; then
+        patch_fix_all+="$change_file_now;"
+        if [ $version_id == "1" ]; then
+            mv -f "$project_location/bugs/$bug_id/$string2" "$work_dir/$project_name/$string1"
+        fi
+    fi
 done
 
 rm -f "$work_dir/$project_name/bugsinpy_patchfile.info"
@@ -206,10 +201,10 @@ cp -f "$project_location/bugs/$bug_id/run_test.sh" "$work_dir/$project_name/bugs
 rm -f "$work_dir/$project_name/bugsinpy_setup.sh"
 rm -f "$work_dir/$project_name/bugsinpy_compile_flag"
 if [[ -e "$project_location/bugs/$bug_id/setup.sh" ]]; then
-   cp -f "$project_location/bugs/$bug_id/setup.sh" "$work_dir/$project_name/bugsinpy_setup.sh"
+    cp -f "$project_location/bugs/$bug_id/setup.sh" "$work_dir/$project_name/bugsinpy_setup.sh"
 fi
 if [[ -e "$project_location/bugs/$bug_id/install.sh" ]]; then
-   cp -f "$project_location/bugs/$bug_id/install.sh" "$work_dir/$project_name/bugsinpy_install.sh"
+    cp -f "$project_location/bugs/$bug_id/install.sh" "$work_dir/$project_name/bugsinpy_install.sh"
 fi
 
 # Add custom unittest runner to save report in JSON format
@@ -280,10 +275,10 @@ if __name__ == "__main__":
 
 cd "$work_dir/$project_name"
 if [[ -f "bugsinpy_setup.sh" ]]; then
-   echo "Running setup script..."
-   chmod +x bugsinpy_setup.sh
-   ./bugsinpy_setup.sh
-   echo "Setup script executed successfully."
+    echo "Running setup script..."
+    chmod +x bugsinpy_setup.sh
+    ./bugsinpy_setup.sh
+    echo "Setup script executed successfully."
 else
-   echo "No setup script found, skipping setup."
+    echo "No setup script found, skipping setup."
 fi
