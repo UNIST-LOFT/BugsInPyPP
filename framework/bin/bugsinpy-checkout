@@ -222,12 +222,15 @@ class JSONTestResult(unittest.TextTestResult):
         self.str_errors=[]
 
     def parseTest(self, test:str):
+        global test_dir
+        if test_dir[-1] == '/':
+            test_dir = test_dir[:-1]
         # Input: test_function (test_module.TestClass)
         # Output: test_module.TestClass.test_function
         test_splitted = test.split()
         test_func, test_class = test_splitted[0], test_splitted[1]
         test_class = test_class[1:-1] # Remove the parentheses
-        return f"{test_class}.{test_func}"
+        return f"{test_dir}.{test_class}.{test_func}"
 
     def addSuccess(self, test):
         super().addSuccess(test)
@@ -268,8 +271,9 @@ def suite(test_dir:str):
     return test_suite
 
 if __name__ == "__main__":
+    test_dir = sys.argv[1]
     runner = CustomTestRunner()
-    test_suite = suite(sys.argv[1])
+    test_suite = suite(test_dir)
     runner.run(test_suite)
 ' > "$work_dir/$project_name/bugsinpy_unittest_runner.py"
 
