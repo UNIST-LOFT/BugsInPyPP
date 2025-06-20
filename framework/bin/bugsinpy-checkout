@@ -223,7 +223,7 @@ class JSONTestResult(unittest.TextTestResult):
 
     def parseTest(self, test:str):
         global test_dir
-        if test_dir[-1] == '/':
+        if test_dir[-1] == "/":
             test_dir = test_dir[:-1]
         # Input: test_function (test_module.TestClass)
         # Output: test_module.TestClass.test_function
