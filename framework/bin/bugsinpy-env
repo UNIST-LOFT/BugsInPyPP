@@ -77,16 +77,4 @@ if ! conda activate $conda_env_name; then
    exit 1
 fi
 
-conda install -y pytest
-
-# for each project set dependency that not in requriement.txt or setup.sh
-if [ "$project_name" == "pandas" ]; then
-    export CFLAGS="-Wno-error=array-bounds"
-    pip install setuptools==66.1.1
-elif [ "$project_name" == "PySnooper" ]; then
-    pip install python_toolbox
-elif [ "$project_name" == "luigi" ]; then
-    pip install setuptools==66.1.1
-fi
-
 conda deactivate

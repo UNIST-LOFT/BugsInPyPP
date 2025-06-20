@@ -163,7 +163,7 @@ for index in "${!run_setup[@]}"
 do
    run_setup_trail=${run_setup[index]} 
    run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
-   $run_setup_now
+   MPLLOCALFREETYPE=1 $run_setup_now
 done
 
 conda deactivate

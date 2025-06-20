@@ -282,7 +282,8 @@ cd "$work_dir/$project_name"
 if [[ -f "bugsinpy_setup.sh" ]]; then
    echo "Running setup script..."
    chmod +x bugsinpy_setup.sh
-   bash bugsinpy_setup.sh
+   ./bugsinpy_setup.sh
+   echo "Setup script executed successfully."
 else
    echo "No setup script found, skipping setup."
 fi
