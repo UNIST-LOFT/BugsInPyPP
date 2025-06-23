@@ -157,7 +157,7 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
             echo "BugsInPy test: $run_command_now: $test_result" &>> "bugsinpy_coverage.txt"
             echo "$res_first" &>> "bugsinpy_coverage.txt"
 
-            coverage json --omit=/tmp/* -o bugsinpy_coverage_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage.txt"
+            coverage xml --omit=/tmp/* -o bugsinpy_coverage_result.xml 2>&1 | tee -a "bugsinpy_coverage.txt"
         done
     else
         run_command_filter=""
@@ -194,41 +194,35 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
                 final_result=1
             fi
 
-            coverage json --omit=/tmp/* -o bugsinpy_coverage_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage.txt"
+            coverage xml --omit=/tmp/* -o bugsinpy_coverage_result.xml 2>&1 | tee -a "bugsinpy_coverage.txt"
         done
     fi
 
 elif [[ "$run_all" == "1" ]]; then
-    if [[ -f "bugsinpy_coverage_alltest_result.json" ]]; then
-        rm "bugsinpy_coverage_alltest_result.json"
+    if [[ -f "bugsinpy_coverage_alltest_result.xml" ]]; then
+        rm "bugsinpy_coverage_alltest_result.xml"
     fi
     if [[ "$pytest" == "1" ]]; then
         echo "Run pytest"
         if [[ "$project_name" == "ansible" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest test/units/" &>> "bugsinpy_coverage_alltest.txt"
-            PYTHONPATH=./lib coverage run --omit=/tmp/* -m pytest test/units/ --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            PYTHONPATH=./lib coverage run --omit=/tmp/* -m pytest test/units/ 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ $project_name == "fastapi" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest" &>> "bugsinpy_coverage_alltest.txt"
-            PYTHONPATH=./docs/src coverage run --omit=/tmp/* -m pytest --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            PYTHONPATH=./docs/src coverage run --omit=/tmp/* -m pytest 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ "$project_name" == "httpie" && $bug_id == "5" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest test/units/" &>> "bugsinpy_coverage_alltest.txt"
-            coverage run --omit=/tmp/* -m pytest tests/tests.py --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest tests/tests.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ "$project_name" == "httpie" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest tests/" &>> "bugsinpy_coverage_alltest.txt"
-            coverage run --omit=/tmp/* -m pytest tests/ --ignore tests/test_ssl.py --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest tests/ --ignore tests/test_ssl.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ "$project_name" == "luigi" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest" &>> "bugsinpy_coverage_alltest.txt"
             coverage run --omit=/tmp/* -m pytest test --ignore test/task_serialize_test.py --ignore test/_mysqldb_test.py \
                 --ignore test/contrib/azureblob_test.py --ignore test/contrib/batch_test.py --ignore test/contrib/ecs_test.py \
                 --ignore test/contrib/hdfs/ --ignore test/remote_scheduler_test.py --ignore test/rpc_test.py \
                 --ignore test/scheduler_parameter_visibilities_test.py --ignore test/server_test.py \
-                --ignore test/visualiser/visualiser_test.py \
-                --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+                --ignore test/visualiser/visualiser_test.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ "$project_name" == "pandas" ]]; then
             # if [[ "$bug_id" == "150" || "$bug_id" == "160" || "$bug_id" == "162" || "$bug_id" == "168" ]]; then
             #    echo "pytest pandas --ignore=pandas/tests/io/test_parquet.py" &>>"bugsinpy_coverage_alltest.txt"
@@ -237,25 +231,21 @@ elif [[ "$run_all" == "1" ]]; then
             #       --ignore pandas/tests/io/test_common.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
             # else
             echo "pytest pandas" &>> "bugsinpy_coverage_alltest.txt"
-            coverage run --omit=/tmp/* -m pytest pandas --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings --ignore pandas/tests/io \
+            coverage run --omit=/tmp/* -m pytest pandas --ignore pandas/tests/io \
                 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
             # fi
         elif [[ "$project_name" == "sanic" && $bug_id == "5" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest " &>> "bugsinpy_coverage_alltest.txt"
             coverage run --omit=/tmp/* -m pytest --ignore tests/test_redirect.py --ignore tests/test_server_events.py --ignore tests/test_signal_handlers.py \
-                --ignore tests/test_worker.py --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+                --ignore tests/test_worker.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         elif [[ "$project_name" == "tqdm" ]]; then
             echo "coverage run --omit=/tmp/* -m pytest tqdm/tests/tests_*.py" &>> "bugsinpy_coverage_alltest.txt"
-            coverage run --omit=/tmp/* -m pytest tqdm/tests/tests_*.py --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest tqdm/tests/tests_*.py 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         else
             echo "coverage run --omit=/tmp/* -m pytest" &>> "bugsinpy_coverage_alltest.txt"
-            coverage run --omit=/tmp/* -m pytest --json-report --json-report-file=bugsinpy_coverage_alltest_result.json --json-report-indent=4 \
-                --json-report-omit log collectors warnings 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+            coverage run --omit=/tmp/* -m pytest 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
         fi
-        coverage json --omit=/tmp/* -o bugsinpy_coverage_alltest_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+        coverage xml --omit=/tmp/* -o bugsinpy_coverage_alltest_result.xml 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
     else
         echo "Run Unittest"
         ###Read bug.info file
@@ -294,7 +284,7 @@ elif [[ "$run_all" == "1" ]]; then
         echo "coverage run -m unittest discover $access_test"
 
         coverage run --omit=/tmp/* -m unittest discover $access_test 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
-        coverage json --omit=/tmp/* -o bugsinpy_coverage_alltest_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
+        coverage xml --omit=/tmp/* -o bugsinpy_coverage_alltest_result.xml 2>&1 | tee -a "bugsinpy_coverage_alltest.txt"
     fi
 
 elif [ "$single_test" != "" ]; then
@@ -304,14 +294,14 @@ elif [ "$single_test" != "" ]; then
         echo "coverage run -m pytest $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
 
-        coverage json --omit=/tmp/* -o bugsinpy_coverage_singletest_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_singletest.txt"
+        coverage xml --omit=/tmp/* -o bugsinpy_coverage_singletest_result.xml 2>&1 | tee -a "bugsinpy_coverage_singletest.txt"
     else
         coverage=$(coverage run -m unittest -q $single_test 2>&1)
         echo "$coverage"
         echo "coverage run -m unittest -q $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
 
-        coverage json --omit=/tmp/* -o bugsinpy_coverage_singletest_result.json --pretty-print 2>&1 | tee -a "bugsinpy_coverage_singletest.txt"
+        coverage xml --omit=/tmp/* -o bugsinpy_coverage_singletest_result.xml 2>&1 | tee -a "bugsinpy_coverage_singletest.txt"
     fi
 fi
 
