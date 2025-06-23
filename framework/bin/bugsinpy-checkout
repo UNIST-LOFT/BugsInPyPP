@@ -277,6 +277,37 @@ if __name__ == "__main__":
     runner.run(test_suite)
 ' > "$work_dir/$project_name/bugsinpy_unittest_runner.py"
 
+echo '#!/usr/bin/env python
+import os
+import sys
+import unittest
+import json
+
+tests=[]
+def print_suite(suite, test_dir):
+    global tests
+    if hasattr(suite, "__iter__"):
+        for x in suite:
+            print_suite(x, test_dir)
+    else:
+        s=str(suite)
+        if test_dir[-1] == "/":
+            test_dir = test_dir[:-1]
+        # Input: test_function (test_module.TestClass)
+        # Output: test_module.TestClass.test_function
+        test_splitted = s.split()
+        test_func, test_class = test_splitted[0], test_splitted[1]
+        test_class = test_class[1:-1] # Remove the parentheses
+        tests.append(f"{test_dir}.{test_class}.{test_func}")
+
+if __name__ == "__main__":
+    test_dir = sys.argv[1]
+    test_suite=unittest.defaultTestLoader.discover(start_dir=os.getcwd()+"/"+test_dir)
+    print_suite(test_suite, test_dir)
+    with open("bugsinpy_alltest_collector.json", "w") as f:
+        json.dump(tests, f, indent=4)
+' > "$work_dir/$project_name/bugsinpy_test_collector.py"
+
 cd "$work_dir/$project_name"
 if [[ -f "bugsinpy_setup.sh" ]]; then
     echo "Running setup script..."
