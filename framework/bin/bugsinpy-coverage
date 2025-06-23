@@ -110,6 +110,7 @@ if [[ "$skip_build" == "0" ]]; then
         run_setup_now=$(echo $run_setup_trail | sed -e 's/\r//g')
         $run_setup_now
     done
+    pip install pytest-cov
 else
     echo "[INFO] Skip recompile due to -s (skip build) flag (no-source file changed)."
 fi
