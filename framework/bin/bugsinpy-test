@@ -397,13 +397,13 @@ elif [[ "$run_all" == "1" ]]; then
 elif [ "$single_test" != "" ]; then
     echo "Run $single_test..."
     if [[ "$pytest" == "1" ]]; then
-        res_first=$(pytest $single_test 2>&1)
+        res_first=$(pytest "$single_test" 2>&1)
         test_result=$?
         echo "$single_test: $test_result"
         echo "BugsInPy test: $single_test: $test_result" &>> "bugsinpy_singletest.txt"
         echo "$res_first" &>> "bugsinpy_singletest.txt"
     else
-        res_first=$(python -m unittest -q $single_test 2>&1)
+        res_first=$(python -m unittest -q "$single_test" 2>&1)
         test_result=$?
         echo "$single_test: $test_result"
         echo "BugsInPy test: $single_test: $test_result" &>> "bugsinpy_singletest.txt"

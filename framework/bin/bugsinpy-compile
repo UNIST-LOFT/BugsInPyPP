@@ -145,7 +145,7 @@ fi
 #    echo "No special dependencies found, skip!"
 # fi
 pip install 'pytest-metadata<=2.0.4'
-pip install pytest-json-report coverage
+pip install pytest-json-report coverage pytest-cov
 
 echo "Running install script..."
 run_setup_all=""

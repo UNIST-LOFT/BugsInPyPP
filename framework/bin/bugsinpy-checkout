@@ -293,6 +293,7 @@ def print_suite(suite, test_dir):
         s=str(suite)
         if test_dir[-1] == "/":
             test_dir = test_dir[:-1]
+        test_dir = test_dir.replace("/", ".")
         # Input: test_function (test_module.TestClass)
         # Output: test_module.TestClass.test_function
         test_splitted = s.split()
@@ -306,7 +307,7 @@ if __name__ == "__main__":
     print_suite(test_suite, test_dir)
     with open("bugsinpy_alltest_collector.json", "w") as f:
         json.dump(tests, f, indent=4)
-' > "$work_dir/$project_name/bugsinpy_test_collector.py"
+' > "$work_dir/$project_name/bugsinpy_unittest_collector.py"
 
 cd "$work_dir/$project_name"
 if [[ -f "bugsinpy_setup.sh" ]]; then

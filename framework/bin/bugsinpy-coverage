@@ -292,13 +292,13 @@ elif [ "$single_test" != "" ]; then
     if [[ "$pytest" == "1" ]]; then
         coverage erase
         coverage=$(PYTHONPATH='./lib:./docs/src' pytest --cov-report xml:bugsinpy_coverage_singletest_result.xml \
-                    --cov=. $single_test 2>&1)
+                    --cov=. "$single_test" 2>&1)
         echo "$coverage"
         echo "coverage run -m pytest $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
     else
         coverage erase
-        coverage=$(coverage run -m unittest -q $single_test 2>&1)
+        coverage=$(coverage run -m unittest -q "$single_test" 2>&1)
         echo "$coverage"
         echo "coverage run -m unittest -q $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
