@@ -27,6 +27,7 @@ run_all="0"
 relevant="0"
 
 single_test=""
+skip_build="0"
 ###Read the flag of checkout
 while getopts ht:w:sar flag; do
     case "${flag}" in
@@ -121,6 +122,7 @@ if ! conda list | grep -q coverage; then
     conda install -y coverage
 fi
 
+final_result=0
 pytest="0"
 #read file run_test.sh
 run_command_all=""
@@ -293,19 +295,27 @@ elif [ "$single_test" != "" ]; then
         coverage erase
         coverage=$(PYTHONPATH='./lib:./docs/src' pytest --cov-report xml:bugsinpy_coverage_singletest_result.xml \
                     --cov=. "$single_test" 2>&1)
+        test_result=$?
         echo "$coverage"
         echo "coverage run -m pytest $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
     else
         coverage erase
         coverage=$(coverage run -m unittest -q "$single_test" 2>&1)
+        test_result=$?
         echo "$coverage"
         echo "coverage run -m unittest -q $single_test" &>> "bugsinpy_coverage_singletest.txt"
         echo "$coverage" &>> "bugsinpy_coverage_singletest.txt"
 
         coverage xml --omit=/tmp/* -o bugsinpy_coverage_singletest_result.xml 2>&1 | tee -a "bugsinpy_coverage_singletest.txt"
     fi
+
+    if [[ $test_result -ne 0 ]]; then
+        final_result=1
+    fi
+
 fi
 
 ###Deactivate the environment
 conda deactivate
+exit $final_result

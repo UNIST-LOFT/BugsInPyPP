@@ -151,7 +151,7 @@ if [[ "$run_all" == "0" && "$single_test" == "" ]]; then
     echo "Run related tests..."
     for index in "${!run_command[@]}"; do
         run_command_trail=${run_command[index]}
-        run_command_now=$(echo $run_command_trail | sed -e 's/\r//g')
+        run_command_now=$(echo $run_command_trail | sed -e 's/\r//g' | sed 's|-q||g')
 
         res_first=$($run_command_now 2>&1)
         test_result=$?
@@ -190,11 +190,11 @@ elif [[ $collect_only == "1" ]]; then
                 --json-report-omit log warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
         elif [[ "$project_name" == "luigi" ]]; then
             echo "python -m pytest" &>> "bugsinpy_alltest.txt"
-            python -m pytest --collect-only test --ignore test/task_serialize_test.py --ignore test/_mysqldb_test.py \
-                --ignore test/contrib/azureblob_test.py --ignore test/contrib/batch_test.py --ignore test/contrib/ecs_test.py \
-                --ignore test/contrib/hdfs/ --ignore test/remote_scheduler_test.py --ignore test/rpc_test.py \
-                --ignore test/scheduler_parameter_visibilities_test.py --ignore test/server_test.py \
-                --ignore test/visualiser/visualiser_test.py \
+            python -m pytest --collect-only test --ignore test/db_task_history_test.py --ignore test/esindex_test.py \
+                --ignore test/redshift_test.py --ignore test/s3_test.py \
+                --ignore test/contrib/hadoop_test.py \
+                --ignore test/contrib/hdfs/ \
+                --ignore collecting test/contrib/sqla_test.py \
                 --json-report --json-report-file=bugsinpy_alltest_collector.json --json-report-indent=4 \
                 --json-report-omit log warnings 2>&1 | tee -a "bugsinpy_alltest.txt"
         elif [[ "$project_name" == "pandas" ]]; then
